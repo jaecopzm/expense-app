@@ -17,11 +17,18 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Set up JDK 11
+      - name: Set up JDK 17
         uses: actions/setup-java@v4
         with:
           distribution: "temurin"
-          java-version: "11"
+          java-version: "17"
+
+      - name: Show Java info and configure Gradle to use JAVA_HOME
+        run: |
+          java -version
+          echo "JAVA_HOME=$JAVA_HOME"
+          mkdir -p $HOME/.gradle
+          echo "org.gradle.java.home=$JAVA_HOME" >> $HOME/.gradle/gradle.properties
 
       - name: Set up Flutter
         uses: subosito/flutter-action@v2

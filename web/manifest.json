@@ -1,11 +1,11 @@
 {
-    "name": "spend_wise",
-    "short_name": "spend_wise",
+    "name": "WizeBudge",
+    "short_name": "WizeBudge",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#0175C2",
-    "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "background_color": "#6366F1",
+    "theme_color": "#6366F1",
+    "description": "WizeBudge - Smart Financial Management App",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

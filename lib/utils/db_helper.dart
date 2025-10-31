@@ -32,10 +32,11 @@ class DBHelper {
       int currentVersion = 0;
       if (userVersionRes.isNotEmpty) {
         final first = userVersionRes.first.values.first;
-        if (first is int)
+        if (first is int) {
           currentVersion = first;
-        else if (first is String)
+        } else if (first is String) {
           currentVersion = int.tryParse(first) ?? 0;
+        }
       }
       debugPrint('Current DB user_version: $currentVersion');
 
@@ -275,6 +276,13 @@ class DBHelper {
             await _runDiagnosticsAndMigrations(db);
           } catch (e) {
             debugPrint('Error running DB diagnostics/migrations: $e');
+          }
+
+          // Create indexes for better performance
+          try {
+            await _createIndexesInternal(db);
+          } catch (e) {
+            debugPrint('Error creating indexes on open: $e');
           }
         },
       );
@@ -582,6 +590,629 @@ class DBHelper {
     } catch (e) {
       debugPrint('Error fetching active recurring transactions: $e');
       return [];
+    }
+  }
+
+  // ============================================================================
+  // ENHANCED DATABASE OPERATIONS
+  // ============================================================================
+
+  /// Internal method to create indexes (used during database initialization)
+  static Future<void> _createIndexesInternal(Database db) async {
+    // Index on expenses date for faster date range queries
+    await db.execute(
+      'CREATE INDEX IF NOT EXISTS idx_expenses_date ON expenses(date DESC)',
+    );
+    
+    // Index on expenses category for faster category queries
+    await db.execute(
+      'CREATE INDEX IF NOT EXISTS idx_expenses_category ON expenses(category)',
+    );
+    
+    // Index on incomes date
+    await db.execute(
+      'CREATE INDEX IF NOT EXISTS idx_incomes_date ON incomes(date DESC)',
+    );
+    
+    // Index on incomes category
+    await db.execute(
+      'CREATE INDEX IF NOT EXISTS idx_incomes_category ON incomes(category)',
+    );
+    
+    // Composite index for recurring transactions
+    await db.execute(
+      'CREATE INDEX IF NOT EXISTS idx_recurring_active_date ON recurring_transactions(isActive, startDate DESC)',
+    );
+    
+    debugPrint('Database indexes created successfully');
+  }
+
+  /// Create database indexes for improved query performance (public method)
+  static Future<void> createIndexes() async {
+    try {
+      final db = await database;
+      await _createIndexesInternal(db);
+    } catch (e) {
+      debugPrint('Error creating indexes: $e');
+    }
+  }
+
+  // ============================================================================
+  // BATCH OPERATIONS
+  // ============================================================================
+
+  /// Insert multiple expenses in a single transaction
+  static Future<List<int>> insertExpensesBatch(List<Expense> expenses) async {
+    try {
+      final db = await database;
+      final ids = <int>[];
+      
+      await db.transaction((txn) async {
+        for (var expense in expenses) {
+          final id = await txn.insert(
+            'expenses',
+            expense.toMap(),
+            conflictAlgorithm: ConflictAlgorithm.replace,
+          );
+          ids.add(id);
+        }
+      });
+      
+      debugPrint('Batch inserted ${ids.length} expenses');
+      return ids;
+    } catch (e) {
+      debugPrint('Error batch inserting expenses: $e');
+      rethrow;
+    }
+  }
+
+  /// Insert multiple incomes in a single transaction
+  static Future<List<int>> insertIncomesBatch(List<Income> incomes) async {
+    try {
+      final db = await database;
+      final ids = <int>[];
+      
+      await db.transaction((txn) async {
+        for (var income in incomes) {
+          final id = await txn.insert(
+            'incomes',
+            income.toMap(),
+            conflictAlgorithm: ConflictAlgorithm.replace,
+          );
+          ids.add(id);
+        }
+      });
+      
+      debugPrint('Batch inserted ${ids.length} incomes');
+      return ids;
+    } catch (e) {
+      debugPrint('Error batch inserting incomes: $e');
+      rethrow;
+    }
+  }
+
+  /// Delete multiple expenses by IDs
+  static Future<int> deleteExpensesBatch(List<int> ids) async {
+    try {
+      final db = await database;
+      int totalDeleted = 0;
+      
+      await db.transaction((txn) async {
+        for (var id in ids) {
+          final count = await txn.delete(
+            'expenses',
+            where: 'id = ?',
+            whereArgs: [id],
+          );
+          totalDeleted += count;
+        }
+      });
+      
+      debugPrint('Batch deleted $totalDeleted expenses');
+      return totalDeleted;
+    } catch (e) {
+      debugPrint('Error batch deleting expenses: $e');
+      rethrow;
+    }
+  }
+
+  // ============================================================================
+  // AGGREGATE QUERIES
+  // ============================================================================
+
+  /// Get total expenses by category
+  static Future<Map<String, double>> getExpenseTotalsByCategory() async {
+    try {
+      final db = await database;
+      final result = await db.rawQuery('''
+        SELECT category, SUM(amount) as total
+        FROM expenses
+        GROUP BY category
+        ORDER BY total DESC
+      ''');
+      
+      final totals = <String, double>{};
+      for (var row in result) {
+        totals[row['category'] as String] = row['total'] as double;
+      }
+      
+      return totals;
+    } catch (e) {
+      debugPrint('Error getting expense totals by category: $e');
+      return {};
+    }
+  }
+
+  /// Get total incomes by category
+  static Future<Map<String, double>> getIncomeTotalsByCategory() async {
+    try {
+      final db = await database;
+      final result = await db.rawQuery('''
+        SELECT category, SUM(amount) as total
+        FROM incomes
+        GROUP BY category
+        ORDER BY total DESC
+      ''');
+      
+      final totals = <String, double>{};
+      for (var row in result) {
+        totals[row['category'] as String] = row['total'] as double;
+      }
+      
+      return totals;
+    } catch (e) {
+      debugPrint('Error getting income totals by category: $e');
+      return {};
+    }
+  }
+
+  /// Get monthly expense totals for the last N months
+  static Future<Map<String, double>> getMonthlyExpenseTotals(int months) async {
+    try {
+      final db = await database;
+      final now = DateTime.now();
+      final startDate = DateTime(now.year, now.month - months, 1);
+      
+      final result = await db.rawQuery('''
+        SELECT strftime('%Y-%m', date) as month, SUM(amount) as total
+        FROM expenses
+        WHERE date >= ?
+        GROUP BY month
+        ORDER BY month DESC
+      ''', [startDate.toIso8601String()]);
+      
+      final totals = <String, double>{};
+      for (var row in result) {
+        totals[row['month'] as String] = row['total'] as double;
+      }
+      
+      return totals;
+    } catch (e) {
+      debugPrint('Error getting monthly expense totals: $e');
+      return {};
+    }
+  }
+
+  /// Get monthly income totals for the last N months
+  static Future<Map<String, double>> getMonthlyIncomeTotals(int months) async {
+    try {
+      final db = await database;
+      final now = DateTime.now();
+      final startDate = DateTime(now.year, now.month - months, 1);
+      
+      final result = await db.rawQuery('''
+        SELECT strftime('%Y-%m', date) as month, SUM(amount) as total
+        FROM incomes
+        WHERE date >= ?
+        GROUP BY month
+        ORDER BY month DESC
+      ''', [startDate.toIso8601String()]);
+      
+      final totals = <String, double>{};
+      for (var row in result) {
+        totals[row['month'] as String] = row['total'] as double;
+      }
+      
+      return totals;
+    } catch (e) {
+      debugPrint('Error getting monthly income totals: $e');
+      return {};
+    }
+  }
+
+  /// Get spending statistics for a date range
+  static Future<Map<String, dynamic>> getSpendingStats(
+    DateTime start,
+    DateTime end,
+  ) async {
+    try {
+      final db = await database;
+      final result = await db.rawQuery('''
+        SELECT 
+          COUNT(*) as count,
+          SUM(amount) as total,
+          AVG(amount) as average,
+          MAX(amount) as max,
+          MIN(amount) as min
+        FROM expenses
+        WHERE date BETWEEN ? AND ?
+      ''', [start.toIso8601String(), end.toIso8601String()]);
+      
+      if (result.isEmpty) {
+        return {
+          'count': 0,
+          'total': 0.0,
+          'average': 0.0,
+          'max': 0.0,
+          'min': 0.0,
+        };
+      }
+      
+      final row = result.first;
+      return {
+        'count': row['count'] ?? 0,
+        'total': row['total'] ?? 0.0,
+        'average': row['average'] ?? 0.0,
+        'max': row['max'] ?? 0.0,
+        'min': row['min'] ?? 0.0,
+      };
+    } catch (e) {
+      debugPrint('Error getting spending stats: $e');
+      return {
+        'count': 0,
+        'total': 0.0,
+        'average': 0.0,
+        'max': 0.0,
+        'min': 0.0,
+      };
+    }
+  }
+
+  // ============================================================================
+  // SEARCH AND FILTER OPERATIONS
+  // ============================================================================
+
+  /// Search expenses by title or note
+  static Future<List<Expense>> searchExpenses(String query) async {
+    try {
+      final db = await database;
+      final result = await db.query(
+        'expenses',
+        where: 'title LIKE ? OR note LIKE ?',
+        whereArgs: ['%$query%', '%$query%'],
+        orderBy: 'date DESC',
+      );
+      
+      return result.map((e) => Expense.fromMap(e)).toList();
+    } catch (e) {
+      debugPrint('Error searching expenses: $e');
+      return [];
+    }
+  }
+
+  /// Search incomes by title or note
+  static Future<List<Income>> searchIncomes(String query) async {
+    try {
+      final db = await database;
+      final result = await db.query(
+        'incomes',
+        where: 'title LIKE ? OR note LIKE ?',
+        whereArgs: ['%$query%', '%$query%'],
+        orderBy: 'date DESC',
+      );
+      
+      return result.map((e) => Income.fromMap(e)).toList();
+    } catch (e) {
+      debugPrint('Error searching incomes: $e');
+      return [];
+    }
+  }
+
+  /// Get expenses with advanced filters
+  static Future<List<Expense>> getExpensesFiltered({
+    List<String>? categories,
+    double? minAmount,
+    double? maxAmount,
+    DateTime? startDate,
+    DateTime? endDate,
+    String? searchQuery,
+    String? sortBy,
+    bool ascending = false,
+  }) async {
+    try {
+      final db = await database;
+      final whereClauses = <String>[];
+      final whereArgs = <dynamic>[];
+      
+      if (categories != null && categories.isNotEmpty) {
+        whereClauses.add('category IN (${List.filled(categories.length, '?').join(',')})');
+        whereArgs.addAll(categories);
+      }
+      
+      if (minAmount != null) {
+        whereClauses.add('amount >= ?');
+        whereArgs.add(minAmount);
+      }
+      
+      if (maxAmount != null) {
+        whereClauses.add('amount <= ?');
+        whereArgs.add(maxAmount);
+      }
+      
+      if (startDate != null) {
+        whereClauses.add('date >= ?');
+        whereArgs.add(startDate.toIso8601String());
+      }
+      
+      if (endDate != null) {
+        whereClauses.add('date <= ?');
+        whereArgs.add(endDate.toIso8601String());
+      }
+      
+      if (searchQuery != null && searchQuery.isNotEmpty) {
+        whereClauses.add('(title LIKE ? OR note LIKE ?)');
+        whereArgs.add('%$searchQuery%');
+        whereArgs.add('%$searchQuery%');
+      }
+      
+      final orderByColumn = sortBy ?? 'date';
+      final orderDirection = ascending ? 'ASC' : 'DESC';
+      
+      final result = await db.query(
+        'expenses',
+        where: whereClauses.isNotEmpty ? whereClauses.join(' AND ') : null,
+        whereArgs: whereArgs.isNotEmpty ? whereArgs : null,
+        orderBy: '$orderByColumn $orderDirection',
+      );
+      
+      return result.map((e) => Expense.fromMap(e)).toList();
+    } catch (e) {
+      debugPrint('Error getting filtered expenses: $e');
+      return [];
+    }
+  }
+
+  /// Get top N expenses
+  static Future<List<Expense>> getTopExpenses(int limit) async {
+    try {
+      final db = await database;
+      final result = await db.query(
+        'expenses',
+        orderBy: 'amount DESC',
+        limit: limit,
+      );
+      
+      return result.map((e) => Expense.fromMap(e)).toList();
+    } catch (e) {
+      debugPrint('Error getting top expenses: $e');
+      return [];
+    }
+  }
+
+  // ============================================================================
+  // DATA EXPORT/IMPORT
+  // ============================================================================
+
+  /// Export all data as JSON
+  static Future<Map<String, dynamic>> exportAllData() async {
+    try {
+      final expenses = await getExpenses();
+      final incomes = await getIncomes();
+      final recurringTransactions = await getRecurringTransactions();
+      
+      return {
+        'version': 1,
+        'exportDate': DateTime.now().toIso8601String(),
+        'expenses': expenses.map((e) => e.toMap()).toList(),
+        'incomes': incomes.map((i) => i.toMap()).toList(),
+        'recurringTransactions': recurringTransactions.map((r) => r.toMap()).toList(),
+      };
+    } catch (e) {
+      debugPrint('Error exporting data: $e');
+      rethrow;
+    }
+  }
+
+  /// Import data from JSON
+  static Future<void> importData(Map<String, dynamic> data) async {
+    try {
+      final db = await database;
+      
+      await db.transaction((txn) async {
+        // Import expenses
+        if (data['expenses'] != null) {
+          for (var expenseMap in data['expenses']) {
+            final expense = Expense.fromMap(expenseMap);
+            await txn.insert(
+              'expenses',
+              expense.toMap(),
+              conflictAlgorithm: ConflictAlgorithm.replace,
+            );
+          }
+        }
+        
+        // Import incomes
+        if (data['incomes'] != null) {
+          for (var incomeMap in data['incomes']) {
+            final income = Income.fromMap(incomeMap);
+            await txn.insert(
+              'incomes',
+              income.toMap(),
+              conflictAlgorithm: ConflictAlgorithm.replace,
+            );
+          }
+        }
+        
+        // Import recurring transactions
+        if (data['recurringTransactions'] != null) {
+          for (var transactionMap in data['recurringTransactions']) {
+            final transaction = RecurringTransaction.fromMap(transactionMap);
+            await txn.insert(
+              'recurring_transactions',
+              transaction.toMap(),
+              conflictAlgorithm: ConflictAlgorithm.replace,
+            );
+          }
+        }
+      });
+      
+      debugPrint('Data imported successfully');
+    } catch (e) {
+      debugPrint('Error importing data: $e');
+      rethrow;
+    }
+  }
+
+  // ============================================================================
+  // ANALYTICS HELPERS
+  // ============================================================================
+
+  /// Get expense count by category
+  static Future<Map<String, int>> getExpenseCountByCategory() async {
+    try {
+      final db = await database;
+      final result = await db.rawQuery('''
+        SELECT category, COUNT(*) as count
+        FROM expenses
+        GROUP BY category
+        ORDER BY count DESC
+      ''');
+      
+      final counts = <String, int>{};
+      for (var row in result) {
+        counts[row['category'] as String] = row['count'] as int;
+      }
+      
+      return counts;
+    } catch (e) {
+      debugPrint('Error getting expense count by category: $e');
+      return {};
+    }
+  }
+
+  /// Get average expense by category
+  static Future<Map<String, double>> getAverageExpenseByCategory() async {
+    try {
+      final db = await database;
+      final result = await db.rawQuery('''
+        SELECT category, AVG(amount) as average
+        FROM expenses
+        GROUP BY category
+        ORDER BY average DESC
+      ''');
+      
+      final averages = <String, double>{};
+      for (var row in result) {
+        averages[row['category'] as String] = row['average'] as double;
+      }
+      
+      return averages;
+    } catch (e) {
+      debugPrint('Error getting average expense by category: $e');
+      return {};
+    }
+  }
+
+  /// Get daily spending trend for last N days
+  static Future<Map<String, double>> getDailySpendingTrend(int days) async {
+    try {
+      final db = await database;
+      final now = DateTime.now();
+      final startDate = now.subtract(Duration(days: days));
+      
+      final result = await db.rawQuery('''
+        SELECT DATE(date) as day, SUM(amount) as total
+        FROM expenses
+        WHERE date >= ?
+        GROUP BY day
+        ORDER BY day DESC
+      ''', [startDate.toIso8601String()]);
+      
+      final trend = <String, double>{};
+      for (var row in result) {
+        trend[row['day'] as String] = row['total'] as double;
+      }
+      
+      return trend;
+    } catch (e) {
+      debugPrint('Error getting daily spending trend: $e');
+      return {};
+    }
+  }
+
+  /// Get net balance (income - expenses) for date range
+  static Future<double> getNetBalance(DateTime start, DateTime end) async {
+    try {
+      final db = await database;
+      
+      final incomeResult = await db.rawQuery('''
+        SELECT SUM(amount) as total
+        FROM incomes
+        WHERE date BETWEEN ? AND ?
+      ''', [start.toIso8601String(), end.toIso8601String()]);
+      
+      final expenseResult = await db.rawQuery('''
+        SELECT SUM(amount) as total
+        FROM expenses
+        WHERE date BETWEEN ? AND ?
+      ''', [start.toIso8601String(), end.toIso8601String()]);
+      
+      final totalIncome = incomeResult.first['total'] as double? ?? 0.0;
+      final totalExpense = expenseResult.first['total'] as double? ?? 0.0;
+      
+      return totalIncome - totalExpense;
+    } catch (e) {
+      debugPrint('Error calculating net balance: $e');
+      return 0.0;
+    }
+  }
+
+  // ============================================================================
+  // MAINTENANCE OPERATIONS
+  // ============================================================================
+
+  /// Vacuum database to optimize storage and performance
+  static Future<void> vacuumDatabase() async {
+    try {
+      final db = await database;
+      await db.execute('VACUUM');
+      debugPrint('Database vacuumed successfully');
+    } catch (e) {
+      debugPrint('Error vacuuming database: $e');
+    }
+  }
+
+  /// Get database statistics
+  static Future<Map<String, dynamic>> getDatabaseStats() async {
+    try {
+      final db = await database;
+      
+      final expenseCount = Sqflite.firstIntValue(
+        await db.rawQuery('SELECT COUNT(*) FROM expenses'),
+      ) ?? 0;
+      
+      final incomeCount = Sqflite.firstIntValue(
+        await db.rawQuery('SELECT COUNT(*) FROM incomes'),
+      ) ?? 0;
+      
+      final recurringCount = Sqflite.firstIntValue(
+        await db.rawQuery('SELECT COUNT(*) FROM recurring_transactions'),
+      ) ?? 0;
+      
+      return {
+        'expenseCount': expenseCount,
+        'incomeCount': incomeCount,
+        'recurringCount': recurringCount,
+        'totalRecords': expenseCount + incomeCount + recurringCount,
+      };
+    } catch (e) {
+      debugPrint('Error getting database stats: $e');
+      return {
+        'expenseCount': 0,
+        'incomeCount': 0,
+        'recurringCount': 0,
+        'totalRecords': 0,
+      };
     }
   }
 }

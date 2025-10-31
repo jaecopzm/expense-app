@@ -172,5 +172,16 @@ jobs:
           body_path: release_notes.md
           draft: false
           prerelease: false
+          generate_release_notes: true
         env:
+          # Option 1: Use default GITHUB_TOKEN (current - works automatically)
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          
+          # Option 2: Use Personal Access Token (PAT) - More permissions
+          # Create PAT at: https://github.com/settings/tokens
+          # Add to repo secrets as 'PAT_TOKEN'
+          # Then uncomment below and comment out GITHUB_TOKEN above:
+          # GITHUB_TOKEN: ${{ secrets.PAT_TOKEN }}
+          
+          # Option 3: Use GitHub App token - Most secure for organizations
+          # GITHUB_TOKEN: ${{ secrets.APP_TOKEN }}

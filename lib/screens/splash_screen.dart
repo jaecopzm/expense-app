@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:firebase_core/firebase_core.dart';
-import '../firebase_options.dart';
 import '../theme/app_theme_enhanced.dart';
 import 'onboarding_screen.dart';
 import 'auth/auth_wrapper.dart';
@@ -92,14 +90,6 @@ class _SplashScreenState extends State<SplashScreen>
   }
 
   Future<void> _initializeApp() async {
-    try {
-      await Firebase.initializeApp(
-        options: DefaultFirebaseOptions.currentPlatform,
-      );
-    } catch (e) {
-      // Firebase may already be initialized
-    }
-
     await Future.delayed(const Duration(milliseconds: 2800));
     if (!mounted) return;
 

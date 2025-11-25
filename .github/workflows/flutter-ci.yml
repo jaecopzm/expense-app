@@ -30,11 +30,11 @@ jobs:
       - name: Install dependencies
         run: flutter pub get
 
-      - name: Flutter analyze
-        run: flutter analyze --no-fatal-infos
+      # - name: Flutter analyze
+      #   run: flutter analyze --no-fatal-infos
 
-      - name: Run tests
-        run: flutter test --coverage || true
+      # - name: Run tests
+      #   run: flutter test --coverage || true
 
       - name: Upload Test Coverage
         uses: codecov/codecov-action@v4

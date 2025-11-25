@@ -1,13 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../providers/theme_provider.dart';
 import '../providers/expense_provider.dart';
 import '../providers/income_provider.dart';
+import '../providers/sync_provider.dart';
+import '../services/firebase_auth_service.dart';
 import '../theme/app_theme_enhanced.dart';
 
 import '../widgets/animated_widgets.dart';
 import '../utils/db_helper.dart';
 import 'recurring_transactions_screen.dart';
+import 'auth/firebase_auth_screen.dart';
 
 class EnhancedSettingsScreen extends StatelessWidget {
   const EnhancedSettingsScreen({super.key});
@@ -169,6 +173,30 @@ class EnhancedSettingsScreen extends StatelessWidget {
                           ],
                         ),
                       ),
+                    ),
+
+                    const SizedBox(height: AppThemeEnhanced.spaceLg),
+
+                    // Account Section
+                    SlideInAnimation(
+                      delay: const Duration(milliseconds: 250),
+                      child: Text(
+                        'Account',
+                        style: Theme.of(context).textTheme.titleMedium
+                            ?.copyWith(
+                              fontWeight: FontWeight.w700,
+                              color: Theme.of(
+                                context,
+                              ).colorScheme.onSurface.withOpacity(0.8),
+                            ),
+                      ),
+                    ),
+
+                    const SizedBox(height: AppThemeEnhanced.spaceMd),
+
+                    SlideInAnimation(
+                      delay: const Duration(milliseconds: 275),
+                      child: _buildAccountCard(context),
                     ),
 
                     const SizedBox(height: AppThemeEnhanced.spaceLg),
@@ -462,6 +490,186 @@ class EnhancedSettingsScreen extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  Widget _buildAccountCard(BuildContext context) {
+    final syncProvider = Provider.of<SyncProvider>(context);
+    final user = FirebaseAuth.instance.currentUser;
+    final isSignedIn = user != null;
+
+    return Container(
+      padding: const EdgeInsets.all(AppThemeEnhanced.spaceLg),
+      decoration: BoxDecoration(
+        color: Theme.of(context).cardColor,
+        borderRadius: BorderRadius.circular(AppThemeEnhanced.radiusXl),
+        border: Border.all(
+          color: Theme.of(context).dividerColor.withValues(alpha: 0.1),
+        ),
+        boxShadow: AppThemeEnhanced.shadowSm,
+      ),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 56,
+                height: 56,
+                decoration: BoxDecoration(
+                  gradient: isSignedIn
+                      ? AppThemeEnhanced.primaryGradient
+                      : null,
+                  color: isSignedIn ? null : AppThemeEnhanced.neutral200,
+                  shape: BoxShape.circle,
+                ),
+                child: Center(
+                  child: isSignedIn
+                      ? Text(
+                          (user.displayName?.isNotEmpty == true
+                                  ? user.displayName![0]
+                                  : user.email?[0] ?? 'U')
+                              .toUpperCase(),
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 22,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        )
+                      : Icon(
+                          Icons.person_outline,
+                          color: AppThemeEnhanced.neutral500,
+                          size: 28,
+                        ),
+                ),
+              ),
+              const SizedBox(width: AppThemeEnhanced.spaceMd),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      isSignedIn
+                          ? (user.displayName?.isNotEmpty == true
+                              ? user.displayName!
+                              : 'WizeBudge User')
+                          : 'Not signed in',
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.w600,
+                          ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      isSignedIn
+                          ? user.email ?? 'Sync enabled'
+                          : 'Sign in to sync your data',
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: Theme.of(context)
+                                .colorScheme
+                                .onSurface
+                                .withValues(alpha: 0.6),
+                          ),
+                    ),
+                  ],
+                ),
+              ),
+              if (isSignedIn && syncProvider.isSyncing)
+                const SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              else if (isSignedIn)
+                Icon(
+                  Icons.cloud_done,
+                  color: AppThemeEnhanced.success,
+                  size: 22,
+                ),
+            ],
+          ),
+          const SizedBox(height: AppThemeEnhanced.spaceMd),
+          SizedBox(
+            width: double.infinity,
+            child: isSignedIn
+                ? OutlinedButton.icon(
+                    onPressed: () => _showSignOutDialog(context),
+                    icon: const Icon(Icons.logout, size: 18),
+                    label: const Text('Sign Out'),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: AppThemeEnhanced.error,
+                      side: BorderSide(color: AppThemeEnhanced.error.withOpacity(0.5)),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                    ),
+                  )
+                : ElevatedButton.icon(
+                    onPressed: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const FirebaseAuthScreen(),
+                      ),
+                    ),
+                    icon: const Icon(Icons.login, size: 18),
+                    label: const Text('Sign In'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppThemeEnhanced.primaryLight,
+                      foregroundColor: Colors.white,
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                    ),
+                  ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _showSignOutDialog(BuildContext context) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppThemeEnhanced.radiusXl),
+        ),
+        title: const Text('Sign Out'),
+        content: const Text(
+          'Your local data will be preserved. You can sign in again to sync.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppThemeEnhanced.error,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Sign Out'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true && context.mounted) {
+      await FirebaseAuthService().signOut();
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Signed out successfully'),
+            backgroundColor: AppThemeEnhanced.success,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+          ),
+        );
+      }
+    }
   }
 
   Widget _buildSettingsCard(

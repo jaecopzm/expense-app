@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../theme/app_theme_enhanced.dart';
@@ -10,247 +11,267 @@ class AuthLockScreen extends StatefulWidget {
   State<AuthLockScreen> createState() => _AuthLockScreenState();
 }
 
-class _AuthLockScreenState extends State<AuthLockScreen> {
-  String _enteredPin = '';
-  bool _showBiometric = false;
-  bool _isShaking = false;
+class _AuthLockScreenState extends State<AuthLockScreen>
+    with SingleTickerProviderStateMixin {
+  String _pin = '';
+  bool _isError = false;
+  bool _biometricAvailable = false;
+  bool _biometricEnabled = false;
+  late AnimationController _shakeController;
+  late Animation<double> _shakeAnimation;
 
   @override
   void initState() {
     super.initState();
+    _shakeController = AnimationController(
+      duration: const Duration(milliseconds: 500),
+      vsync: this,
+    );
+    _shakeAnimation = Tween<double>(begin: 0, end: 1).animate(
+      CurvedAnimation(parent: _shakeController, curve: Curves.elasticIn),
+    );
     _checkBiometric();
   }
 
   Future<void> _checkBiometric() async {
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
-    final isAvailable = await authProvider.isBiometricAvailable();
-    final isEnabled = await authProvider.isBiometricEnabled();
-    
+    _biometricAvailable = await authProvider.isBiometricAvailable();
+    _biometricEnabled = await authProvider.isBiometricEnabled();
     if (mounted) {
-      setState(() => _showBiometric = isAvailable && isEnabled);
-      if (_showBiometric) _authenticateWithBiometric();
+      setState(() {});
+      if (_biometricAvailable && _biometricEnabled) {
+        _authenticateWithBiometric();
+      }
     }
   }
 
   Future<void> _authenticateWithBiometric() async {
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
-    final success = await authProvider.authenticateWithBiometrics();
-    if (success && mounted) {
-      Navigator.of(context).pushReplacementNamed('/main');
-    }
+    await authProvider.authenticateWithBiometrics();
   }
 
-  void _onNumberPressed(String number) {
-    if (_enteredPin.length < 4) {
-      setState(() => _enteredPin += number);
-      if (_enteredPin.length == 4) _verifyPin();
-    }
-  }
-
-  void _onBackspace() {
-    if (_enteredPin.isNotEmpty) {
-      setState(() => _enteredPin = _enteredPin.substring(0, _enteredPin.length - 1));
-    }
-  }
-
-  Future<void> _verifyPin() async {
-    final authProvider = Provider.of<AuthProvider>(context, listen: false);
-    final isValid = await authProvider.authenticateWithPin(_enteredPin);
-    
-    if (mounted) {
-      if (isValid) {
-        Navigator.of(context).pushReplacementNamed('/main');
-      } else {
-        setState(() {
-          _isShaking = true;
-          _enteredPin = '';
-        });
-        Future.delayed(const Duration(milliseconds: 500), () {
-          if (mounted) setState(() => _isShaking = false);
-        });
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Incorrect PIN'), duration: Duration(seconds: 2)),
-        );
-      }
-    }
+  @override
+  void dispose() {
+    _shakeController.dispose();
+    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Scaffold(
-      body: Container(
-        width: double.infinity,
-        height: double.infinity,
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              AppThemeEnhanced.primaryLight,
-              AppThemeEnhanced.secondaryLight,
-            ],
-          ),
-        ),
-        child: SafeArea(
-          child: Center(
-            child: SingleChildScrollView(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 24),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const SizedBox(height: 40),
-                    _buildHeader(),
-                    const SizedBox(height: 60),
-                    _buildPinDisplay(),
-                    const SizedBox(height: 60),
-                    _buildKeypad(),
-                    if (_showBiometric) ...[
-                      const SizedBox(height: 32),
-                      _buildBiometricButton(),
-                    ],
-                    const SizedBox(height: 40),
-                  ],
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(32),
+          child: Column(
+            children: [
+              const Spacer(),
+              // Logo
+              Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  gradient: AppThemeEnhanced.primaryGradient,
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.lock_rounded,
+                  size: 48,
+                  color: Colors.white,
                 ),
               ),
-            ),
+              const SizedBox(height: 32),
+              Text(
+                'Welcome Back',
+                style: TextStyle(
+                  fontSize: 28,
+                  fontWeight: FontWeight.w700,
+                  color: isDark ? Colors.white : AppThemeEnhanced.neutral900,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Enter your PIN to continue',
+                style: TextStyle(
+                  fontSize: 15,
+                  color: isDark ? Colors.white60 : AppThemeEnhanced.neutral500,
+                ),
+              ),
+              const SizedBox(height: 48),
+              // PIN dots with shake animation
+              AnimatedBuilder(
+                animation: _shakeAnimation,
+                builder: (context, child) {
+                  final shake = _shakeAnimation.value * 10;
+                  return Transform.translate(
+                    offset: Offset(
+                      shake * ((_shakeAnimation.value * 10).toInt() % 2 == 0 ? 1 : -1),
+                      0,
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: List.generate(4, (index) {
+                        final isFilled = index < _pin.length;
+                        return AnimatedContainer(
+                          duration: const Duration(milliseconds: 200),
+                          margin: const EdgeInsets.symmetric(horizontal: 12),
+                          width: isFilled ? 20 : 16,
+                          height: isFilled ? 20 : 16,
+                          decoration: BoxDecoration(
+                            color: _isError
+                                ? AppThemeEnhanced.error
+                                : (isFilled
+                                    ? AppThemeEnhanced.primaryLight
+                                    : Colors.transparent),
+                            border: Border.all(
+                              color: _isError
+                                  ? AppThemeEnhanced.error
+                                  : AppThemeEnhanced.primaryLight,
+                              width: 2,
+                            ),
+                            shape: BoxShape.circle,
+                          ),
+                        );
+                      }),
+                    ),
+                  );
+                },
+              ),
+              const Spacer(),
+              // Number pad
+              _buildNumberPad(),
+              const SizedBox(height: 24),
+              // Biometric button
+              if (_biometricAvailable && _biometricEnabled)
+                TextButton.icon(
+                  onPressed: _authenticateWithBiometric,
+                  icon: Icon(
+                    Icons.fingerprint,
+                    color: AppThemeEnhanced.primaryLight,
+                  ),
+                  label: Text(
+                    'Use Biometrics',
+                    style: TextStyle(
+                      color: AppThemeEnhanced.primaryLight,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              const SizedBox(height: 16),
+            ],
           ),
         ),
       ),
     );
   }
 
-  Widget _buildHeader() {
+  Widget _buildNumberPad() {
     return Column(
       children: [
-        Container(
-          padding: const EdgeInsets.all(20),
-          decoration: const BoxDecoration(
-            color: Colors.white,
-            shape: BoxShape.circle,
-          ),
-          child: Image.asset(
-            'assets/images/wizebudge-logo.png',
-            width: 60,
-            height: 60,
-            errorBuilder: (_, __, ___) => const Icon(
-              Icons.account_balance_wallet,
-              size: 60,
-              color: AppThemeEnhanced.primaryLight,
+        for (var row = 0; row < 4; row++)
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 8),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                for (var col = 0; col < 3; col++) _buildNumberButton(row, col),
+              ],
             ),
           ),
-        ),
-        const SizedBox(height: 24),
-        const Text(
-          'Welcome Back',
-          style: TextStyle(
-            color: Colors.white,
-            fontSize: 32,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        const SizedBox(height: 8),
-        const Text(
-          'Enter your PIN',
-          style: TextStyle(
-            color: Colors.white70,
-            fontSize: 16,
-          ),
-        ),
       ],
     );
   }
 
-  Widget _buildPinDisplay() {
-    return AnimatedContainer(
-      duration: const Duration(milliseconds: 100),
-      transform: Matrix4.translationValues(_isShaking ? 10 : 0, 0, 0),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: List.generate(4, (index) {
-          return Container(
-            margin: const EdgeInsets.symmetric(horizontal: 12),
-            width: 20,
-            height: 20,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: index < _enteredPin.length ? Colors.white : Colors.transparent,
-              border: Border.all(color: Colors.white, width: 2),
-            ),
-          );
-        }),
-      ),
-    );
-  }
+  Widget _buildNumberButton(int row, int col) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    String? label;
+    IconData? icon;
+    VoidCallback? onTap;
 
-  Widget _buildKeypad() {
-    return ConstrainedBox(
-      constraints: const BoxConstraints(maxWidth: 400),
-      child: Column(
-        children: [
-          _buildKeypadRow(['1', '2', '3']),
-          const SizedBox(height: 20),
-          _buildKeypadRow(['4', '5', '6']),
-          const SizedBox(height: 20),
-          _buildKeypadRow(['7', '8', '9']),
-          const SizedBox(height: 20),
-          _buildKeypadRow(['', '0', '⌫']),
-        ],
-      ),
-    );
-  }
+    if (row < 3) {
+      final number = row * 3 + col + 1;
+      label = number.toString();
+      onTap = () => _onNumberTap(number.toString());
+    } else {
+      if (col == 0) {
+        return const SizedBox(width: 80, height: 64);
+      } else if (col == 1) {
+        label = '0';
+        onTap = () => _onNumberTap('0');
+      } else {
+        icon = Icons.backspace_outlined;
+        onTap = _onBackspace;
+      }
+    }
 
-  Widget _buildKeypadRow(List<String> numbers) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-      children: numbers.map((num) {
-        if (num.isEmpty) {
-          return const SizedBox(width: 80, height: 80);
-        }
-        
-        return Material(
-          color: Colors.transparent,
-          child: InkWell(
-            onTap: () {
-              if (num == '⌫') {
-                _onBackspace();
-              } else {
-                _onNumberPressed(num);
-              }
-            },
-            borderRadius: BorderRadius.circular(40),
-            child: Container(
-              width: 80,
-              height: 80,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                border: Border.all(color: Colors.white30, width: 1.5),
-              ),
-              child: Center(
-                child: Text(
-                  num,
-                  style: const TextStyle(
-                    color: Colors.white,
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 80,
+        height: 64,
+        margin: const EdgeInsets.symmetric(horizontal: 12),
+        decoration: BoxDecoration(
+          color: isDark
+              ? AppThemeEnhanced.neutral800
+              : AppThemeEnhanced.neutral100,
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Center(
+          child: label != null
+              ? Text(
+                  label,
+                  style: TextStyle(
                     fontSize: 28,
-                    fontWeight: FontWeight.w500,
+                    fontWeight: FontWeight.w600,
+                    color: isDark ? Colors.white : AppThemeEnhanced.neutral900,
                   ),
+                )
+              : Icon(
+                  icon,
+                  size: 24,
+                  color: isDark ? Colors.white70 : AppThemeEnhanced.neutral600,
                 ),
-              ),
-            ),
-          ),
-        );
-      }).toList(),
+        ),
+      ),
     );
   }
 
-  Widget _buildBiometricButton() {
-    return TextButton.icon(
-      onPressed: _authenticateWithBiometric,
-      icon: const Icon(Icons.fingerprint, color: Colors.white, size: 32),
-      label: const Text(
-        'Use Biometric',
-        style: TextStyle(color: Colors.white, fontSize: 16),
-      ),
-    );
+  void _onNumberTap(String number) {
+    if (_pin.length >= 4) return;
+    HapticFeedback.lightImpact();
+    setState(() {
+      _pin += number;
+      _isError = false;
+    });
+    if (_pin.length == 4) {
+      _verifyPin();
+    }
+  }
+
+  void _onBackspace() {
+    if (_pin.isEmpty) return;
+    HapticFeedback.lightImpact();
+    setState(() {
+      _pin = _pin.substring(0, _pin.length - 1);
+      _isError = false;
+    });
+  }
+
+  Future<void> _verifyPin() async {
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    final success = await authProvider.authenticateWithPin(_pin);
+
+    if (!success && mounted) {
+      HapticFeedback.heavyImpact();
+      setState(() {
+        _isError = true;
+      });
+      _shakeController.forward().then((_) {
+        _shakeController.reset();
+        setState(() {
+          _pin = '';
+        });
+      });
+    }
   }
 }

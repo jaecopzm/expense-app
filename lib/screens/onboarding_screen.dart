@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../theme/app_theme_enhanced.dart';
-import '../widgets/animated_widgets.dart';
-import 'auth/auth_wrapper.dart';
+import 'auth/firebase_auth_screen.dart';
 
 class OnboardingScreen extends StatefulWidget {
   const OnboardingScreen({super.key});
@@ -15,34 +14,30 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   final PageController _pageController = PageController();
   int _currentPage = 0;
 
-  final List<OnboardingPage> _pages = [
-    OnboardingPage(
-      icon: Icons.account_balance_wallet,
-      title: 'Welcome to WizeBudge',
-      description:
-          'Your personal finance companion that helps you track expenses, manage income, and achieve your financial goals.',
-      color: AppThemeEnhanced.primaryLight,
+  final List<_OnboardingData> _pages = [
+    _OnboardingData(
+      icon: Icons.account_balance_wallet_rounded,
+      title: 'Track Every Penny',
+      description: 'Effortlessly log expenses and income. Know exactly where your money goes with beautiful insights.',
+      gradient: [const Color(0xFF6366F1), const Color(0xFF8B5CF6)],
     ),
-    OnboardingPage(
-      icon: Icons.insights,
-      title: 'Smart Insights',
-      description:
-          'Get AI-powered insights and analytics to understand your spending patterns and make better financial decisions.',
-      color: AppThemeEnhanced.secondaryLight,
+    _OnboardingData(
+      icon: Icons.insights_rounded,
+      title: 'AI-Powered Insights',
+      description: 'Get personalized recommendations and spending analysis powered by smart algorithms.',
+      gradient: [const Color(0xFF10B981), const Color(0xFF059669)],
     ),
-    OnboardingPage(
-      icon: Icons.flag,
-      title: 'Set Financial Goals',
-      description:
-          'Create and track your financial goals. Stay motivated as you watch your progress towards achieving them.',
-      color: AppThemeEnhanced.success,
+    _OnboardingData(
+      icon: Icons.cloud_sync_rounded,
+      title: 'Sync Everywhere',
+      description: 'Your data syncs securely across all devices. Access your finances anytime, anywhere.',
+      gradient: [const Color(0xFF3B82F6), const Color(0xFF1D4ED8)],
     ),
-    OnboardingPage(
-      icon: Icons.security,
-      title: 'Secure & Private',
-      description:
-          'Your data is stored securely on your device. Use PIN or biometric authentication to keep your finances safe.',
-      color: AppThemeEnhanced.info,
+    _OnboardingData(
+      icon: Icons.shield_rounded,
+      title: 'Bank-Level Security',
+      description: 'Your financial data is encrypted and protected with biometric authentication.',
+      gradient: [const Color(0xFFF59E0B), const Color(0xFFD97706)],
     ),
   ];
 
@@ -55,12 +50,20 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   Future<void> _completeOnboarding() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool('isFirstTime', false);
-
     if (!mounted) return;
-
     Navigator.of(context).pushReplacement(
-      MaterialPageRoute(
-        builder: (context) => const AuthWrapper(),
+      PageRouteBuilder(
+        pageBuilder: (_, __, ___) => const FirebaseAuthScreen(),
+        transitionsBuilder: (_, animation, __, child) {
+          return SlideTransition(
+            position: Tween<Offset>(
+              begin: const Offset(1, 0),
+              end: Offset.zero,
+            ).animate(CurvedAnimation(parent: animation, curve: Curves.easeOutCubic)),
+            child: child,
+          );
+        },
+        transitionDuration: const Duration(milliseconds: 400),
       ),
     );
   }
@@ -68,12 +71,19 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: SafeArea(
-        child: Column(
-          children: [
-            // Skip button
-            Padding(
-              padding: const EdgeInsets.all(AppThemeEnhanced.spaceLg),
+      body: Stack(
+        children: [
+          // Page content
+          PageView.builder(
+            controller: _pageController,
+            onPageChanged: (page) => setState(() => _currentPage = page),
+            itemCount: _pages.length,
+            itemBuilder: (context, index) => _buildPage(_pages[index]),
+          ),
+          // Top skip button
+          SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
               child: Align(
                 alignment: Alignment.topRight,
                 child: TextButton(
@@ -81,7 +91,9 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                   child: Text(
                     'Skip',
                     style: TextStyle(
-                      color: AppThemeEnhanced.primaryLight,
+                      color: Theme.of(context).brightness == Brightness.dark
+                          ? Colors.white70
+                          : AppThemeEnhanced.neutral600,
                       fontWeight: FontWeight.w600,
                       fontSize: 16,
                     ),
@@ -89,171 +101,154 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                 ),
               ),
             ),
-
-            // Page view
-            Expanded(
-              child: PageView.builder(
-                controller: _pageController,
-                onPageChanged: (page) {
-                  setState(() {
-                    _currentPage = page;
-                  });
-                },
-                itemCount: _pages.length,
-                itemBuilder: (context, index) {
-                  return _buildPage(_pages[index], index);
-                },
-              ),
-            ),
-
-            // Page indicators
-            Padding(
-              padding: const EdgeInsets.symmetric(
-                vertical: AppThemeEnhanced.spaceLg,
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: List.generate(
-                  _pages.length,
-                  (index) => _buildIndicator(index),
+          ),
+          // Bottom navigation
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: 0,
+            child: SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // Page indicators
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: List.generate(
+                        _pages.length,
+                        (index) => AnimatedContainer(
+                          duration: const Duration(milliseconds: 300),
+                          margin: const EdgeInsets.symmetric(horizontal: 4),
+                          height: 8,
+                          width: _currentPage == index ? 32 : 8,
+                          decoration: BoxDecoration(
+                            color: _currentPage == index
+                                ? _pages[_currentPage].gradient[0]
+                                : Colors.grey.shade300,
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 32),
+                    // Action button
+                    SizedBox(
+                      width: double.infinity,
+                      height: 56,
+                      child: ElevatedButton(
+                        onPressed: () {
+                          if (_currentPage == _pages.length - 1) {
+                            _completeOnboarding();
+                          } else {
+                            _pageController.nextPage(
+                              duration: const Duration(milliseconds: 400),
+                              curve: Curves.easeOutCubic,
+                            );
+                          }
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: _pages[_currentPage].gradient[0],
+                          foregroundColor: Colors.white,
+                          elevation: 0,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                        ),
+                        child: Text(
+                          _currentPage == _pages.length - 1 ? 'Get Started' : 'Continue',
+                          style: const TextStyle(
+                            fontSize: 17,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ),
-
-            // Bottom button
-            Padding(
-              padding: const EdgeInsets.all(AppThemeEnhanced.spaceLg),
-              child: SizedBox(
-                width: double.infinity,
-                height: 56,
-                child: ElevatedButton(
-                  onPressed: () {
-                    if (_currentPage == _pages.length - 1) {
-                      _completeOnboarding();
-                    } else {
-                      _pageController.nextPage(
-                        duration: const Duration(milliseconds: 300),
-                        curve: Curves.easeInOut,
-                      );
-                    }
-                  },
-                  style: AppThemeEnhanced.primaryButtonStyle(context).copyWith(
-                    backgroundColor: WidgetStateProperty.all(
-                      _pages[_currentPage].color,
-                    ),
-                  ),
-                  child: Text(
-                    _currentPage == _pages.length - 1
-                        ? 'Get Started'
-                        : 'Next',
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
 
-  Widget _buildPage(OnboardingPage page, int index) {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(AppThemeEnhanced.space2xl),
-      child: ConstrainedBox(
-        constraints: BoxConstraints(
-          minHeight: MediaQuery.of(context).size.height -
-              MediaQuery.of(context).padding.top -
-              MediaQuery.of(context).padding.bottom -
-              200, // Account for top/bottom UI elements
-        ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            // Icon
-            SlideInAnimation(
-              delay: Duration(milliseconds: 100 * index),
-              child: Container(
-                padding: const EdgeInsets.all(AppThemeEnhanced.spaceLg),
-                decoration: BoxDecoration(
-                  color: page.color.withOpacity(0.1),
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(
-                  page.icon,
-                  size: 80,
-                  color: page.color,
-                ),
+  Widget _buildPage(_OnboardingData data) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 32),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const Spacer(flex: 2),
+          // Icon with gradient background
+          Container(
+            padding: const EdgeInsets.all(32),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: data.gradient,
               ),
-            ),
-
-            const SizedBox(height: AppThemeEnhanced.space2xl),
-
-            // Title
-            SlideInAnimation(
-              delay: Duration(milliseconds: 200 + (100 * index)),
-              child: Text(
-                page.title,
-                style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                  fontWeight: FontWeight.w800,
-                  color: page.color,
+              shape: BoxShape.circle,
+              boxShadow: [
+                BoxShadow(
+                  color: data.gradient[0].withOpacity(0.4),
+                  blurRadius: 30,
+                  spreadRadius: 5,
                 ),
-                textAlign: TextAlign.center,
-              ),
+              ],
             ),
-
-            const SizedBox(height: AppThemeEnhanced.spaceLg),
-
-            // Description
-            SlideInAnimation(
-              delay: Duration(milliseconds: 300 + (100 * index)),
-              child: Text(
-                page.description,
-                style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                  color: Theme.of(context)
-                      .colorScheme
-                      .onSurface
-                      .withOpacity(0.7),
-                  height: 1.5,
-                ),
-                textAlign: TextAlign.center,
-              ),
+            child: Icon(
+              data.icon,
+              size: 72,
+              color: Colors.white,
             ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildIndicator(int index) {
-    return AnimatedContainer(
-      duration: const Duration(milliseconds: 300),
-      margin: const EdgeInsets.symmetric(horizontal: 4),
-      height: 8,
-      width: _currentPage == index ? 24 : 8,
-      decoration: BoxDecoration(
-        color: _currentPage == index
-            ? _pages[_currentPage].color
-            : Colors.grey.shade300,
-        borderRadius: BorderRadius.circular(4),
+          ),
+          const SizedBox(height: 48),
+          // Title
+          Text(
+            data.title,
+            style: TextStyle(
+              fontSize: 28,
+              fontWeight: FontWeight.w800,
+              color: Theme.of(context).brightness == Brightness.dark
+                  ? Colors.white
+                  : AppThemeEnhanced.neutral900,
+            ),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 16),
+          // Description
+          Text(
+            data.description,
+            style: TextStyle(
+              fontSize: 16,
+              height: 1.6,
+              color: Theme.of(context).brightness == Brightness.dark
+                  ? Colors.white70
+                  : AppThemeEnhanced.neutral600,
+            ),
+            textAlign: TextAlign.center,
+          ),
+          const Spacer(flex: 3),
+        ],
       ),
     );
   }
 }
 
-class OnboardingPage {
+class _OnboardingData {
   final IconData icon;
   final String title;
   final String description;
-  final Color color;
+  final List<Color> gradient;
 
-  OnboardingPage({
+  _OnboardingData({
     required this.icon,
     required this.title,
     required this.description,
-    required this.color,
+    required this.gradient,
   });
 }

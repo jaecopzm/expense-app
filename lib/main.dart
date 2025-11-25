@@ -8,6 +8,7 @@ import 'providers/recurring_transaction_provider.dart';
 import 'providers/premium_provider.dart';
 import 'providers/financial_goals_provider.dart';
 import 'providers/auth_provider.dart';
+import 'providers/sync_provider.dart';
 import 'services/notification_service.dart';
 import 'services/template_service.dart';
 import 'utils/db_helper.dart';
@@ -23,6 +24,7 @@ import 'screens/splash_screen.dart';
 import 'screens/receipt_scanner_screen.dart';
 import 'screens/ai_insights_screen.dart';
 import 'screens/budget_screen.dart';
+import 'screens/auth/firebase_auth_screen.dart';
 
 import 'widgets/enhanced_navigation.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -264,13 +266,11 @@ ThemeData _buildDarkTheme() {
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Set preferred orientations
   await SystemChrome.setPreferredOrientations([
     DeviceOrientation.portraitUp,
     DeviceOrientation.portraitDown,
   ]);
 
-  // Initialize database for desktop platforms
   await DBHelper.initializeDatabase();
   runApp(const SpendWiseApp());
 }
@@ -289,6 +289,7 @@ class SpendWiseApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => PremiumProvider()),
         ChangeNotifierProvider(create: (_) => FinancialGoalsProvider()),
         ChangeNotifierProvider(create: (_) => AuthProvider()),
+        ChangeNotifierProvider(create: (_) => SyncProvider()),
         ChangeNotifierProvider(create: (_) => NotificationService()),
         ChangeNotifierProvider(create: (_) => TemplateService()),
       ],
@@ -308,6 +309,7 @@ class SpendWiseApp extends StatelessWidget {
               '/receipt-scanner': (context) => const ReceiptScannerScreen(),
               '/ai-insights': (context) => const AIInsightsScreen(),
               '/budget': (context) => const BudgetScreen(),
+              '/firebase-auth': (context) => const FirebaseAuthScreen(),
             },
           );
         },

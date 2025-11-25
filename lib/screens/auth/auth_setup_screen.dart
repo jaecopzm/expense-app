@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../theme/app_theme_enhanced.dart';
-import '../../widgets/animated_widgets.dart';
 
 class AuthSetupScreen extends StatefulWidget {
   const AuthSetupScreen({super.key});
@@ -17,11 +17,31 @@ class _AuthSetupScreenState extends State<AuthSetupScreen> {
   String _pin = '';
   String _confirmPin = '';
   bool _biometricEnabled = false;
+  bool _biometricAvailable = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkBiometric();
+  }
+
+  Future<void> _checkBiometric() async {
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    _biometricAvailable = await authProvider.isBiometricAvailable();
+    if (mounted) setState(() {});
+  }
 
   @override
   void dispose() {
     _pageController.dispose();
     super.dispose();
+  }
+
+  void _nextPage() {
+    _pageController.nextPage(
+      duration: const Duration(milliseconds: 400),
+      curve: Curves.easeOutCubic,
+    );
   }
 
   @override
@@ -30,11 +50,12 @@ class _AuthSetupScreenState extends State<AuthSetupScreen> {
       body: SafeArea(
         child: PageView(
           controller: _pageController,
+          physics: const NeverScrollableScrollPhysics(),
           onPageChanged: (page) => setState(() => _currentPage = page),
           children: [
             _buildWelcomePage(),
             _buildPinSetupPage(),
-            _buildBiometricSetupPage(),
+            if (_biometricAvailable) _buildBiometricPage(),
             _buildCompletePage(),
           ],
         ),
@@ -44,721 +65,450 @@ class _AuthSetupScreenState extends State<AuthSetupScreen> {
 
   Widget _buildWelcomePage() {
     return Container(
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            AppThemeEnhanced.primaryLight,
-            AppThemeEnhanced.primaryLight.withOpacity(0.8),
-            AppThemeEnhanced.secondaryLight,
-          ],
-        ),
-      ),
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.all(AppThemeEnhanced.spaceLg),
-        child: ConstrainedBox(
-          constraints: BoxConstraints(
-            minHeight: MediaQuery.of(context).size.height -
-                MediaQuery.of(context).padding.top -
-                MediaQuery.of(context).padding.bottom -
-                (AppThemeEnhanced.spaceLg * 2),
+      decoration: BoxDecoration(gradient: AppThemeEnhanced.primaryGradient),
+      padding: const EdgeInsets.all(32),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(28),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              shape: BoxShape.circle,
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.15),
+                  blurRadius: 30,
+                  spreadRadius: 5,
+                ),
+              ],
+            ),
+            child: Icon(
+              Icons.shield_rounded,
+              size: 72,
+              color: AppThemeEnhanced.primaryLight,
+            ),
           ),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              SlideInAnimation(
-                child: Hero(
-                  tag: 'app_logo',
-                  child: Container(
-                    padding: const EdgeInsets.all(AppThemeEnhanced.space2xl),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      shape: BoxShape.circle,
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.1),
-                          blurRadius: 20,
-                          spreadRadius: 5,
-                        ),
-                      ],
-                    ),
-                    child: Icon(
-                      Icons.security,
-                      size: 80,
-                      color: AppThemeEnhanced.primaryLight,
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(height: AppThemeEnhanced.space3xl),
-              SlideInAnimation(
-                delay: const Duration(milliseconds: 200),
-                child: const Text(
-                  'Secure Your\nFinancial Data',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 36,
-                    fontWeight: FontWeight.w900,
-                    letterSpacing: -0.5,
-                    height: 1.2,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-              ),
-              const SizedBox(height: AppThemeEnhanced.spaceLg),
-              SlideInAnimation(
-                delay: const Duration(milliseconds: 400),
-                child: Text(
-                  'Set up authentication to keep your\nfinancial information safe and secure.',
-                  style: TextStyle(
-                    color: Colors.white.withOpacity(0.9),
-                    fontSize: 16,
-                    fontWeight: FontWeight.w400,
-                    height: 1.5,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-              ),
-              const SizedBox(height: AppThemeEnhanced.space3xl),
-              SlideInAnimation(
-                delay: const Duration(milliseconds: 600),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: AppThemeEnhanced.spaceLg),
-                  child: SizedBox(
-                    width: double.infinity,
-                    height: 56,
-                    child: ElevatedButton(
-                      onPressed: () => _nextPage(),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.white,
-                        foregroundColor: AppThemeEnhanced.primaryLight,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(AppThemeEnhanced.radiusFull),
-                        ),
-                        elevation: 8,
-                        shadowColor: Colors.black.withOpacity(0.3),
-                      ),
-                      child: const Text(
-                        'Get Started',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ],
+          const SizedBox(height: 48),
+          const Text(
+            'Secure Your\nFinancial Data',
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 32,
+              fontWeight: FontWeight.w800,
+              height: 1.2,
+            ),
+            textAlign: TextAlign.center,
           ),
-        ),
+          const SizedBox(height: 16),
+          Text(
+            'Set up a PIN to protect your finances.\nYour data stays private and secure.',
+            style: TextStyle(
+              color: Colors.white.withOpacity(0.9),
+              fontSize: 16,
+              height: 1.5,
+            ),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 64),
+          SizedBox(
+            width: double.infinity,
+            height: 56,
+            child: ElevatedButton(
+              onPressed: _nextPage,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.white,
+                foregroundColor: AppThemeEnhanced.primaryLight,
+                elevation: 0,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
+              ),
+              child: const Text(
+                'Set Up PIN',
+                style: TextStyle(fontSize: 17, fontWeight: FontWeight.w600),
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+          TextButton(
+            onPressed: () => _skipSetup(),
+            child: Text(
+              'Skip for now',
+              style: TextStyle(
+                color: Colors.white.withOpacity(0.8),
+                fontSize: 15,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
 
   Widget _buildPinSetupPage() {
-    return Container(
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            AppThemeEnhanced.primaryLight,
-            AppThemeEnhanced.primaryLight.withOpacity(0.8),
-            AppThemeEnhanced.secondaryLight,
-          ],
-        ),
+    final isConfirming = _pin.length == 4;
+    final currentPin = isConfirming ? _confirmPin : _pin;
+
+    return Padding(
+      padding: const EdgeInsets.all(32),
+      child: Column(
+        children: [
+          const Spacer(),
+          Icon(
+            isConfirming ? Icons.check_circle_outline : Icons.lock_outline,
+            size: 64,
+            color: AppThemeEnhanced.primaryLight,
+          ),
+          const SizedBox(height: 32),
+          Text(
+            isConfirming ? 'Confirm Your PIN' : 'Create a PIN',
+            style: TextStyle(
+              fontSize: 26,
+              fontWeight: FontWeight.w700,
+              color: Theme.of(context).brightness == Brightness.dark
+                  ? Colors.white
+                  : AppThemeEnhanced.neutral900,
+            ),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            isConfirming
+                ? 'Enter your PIN again to confirm'
+                : 'Choose a 4-digit PIN to secure your app',
+            style: TextStyle(
+              fontSize: 15,
+              color: Theme.of(context).brightness == Brightness.dark
+                  ? Colors.white60
+                  : AppThemeEnhanced.neutral500,
+            ),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 48),
+          // PIN dots
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: List.generate(4, (index) {
+              final isFilled = index < currentPin.length;
+              return AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                margin: const EdgeInsets.symmetric(horizontal: 12),
+                width: isFilled ? 20 : 16,
+                height: isFilled ? 20 : 16,
+                decoration: BoxDecoration(
+                  color: isFilled
+                      ? AppThemeEnhanced.primaryLight
+                      : Colors.transparent,
+                  border: Border.all(
+                    color: AppThemeEnhanced.primaryLight,
+                    width: 2,
+                  ),
+                  shape: BoxShape.circle,
+                ),
+              );
+            }),
+          ),
+          const Spacer(),
+          // Number pad
+          _buildNumberPad(isConfirming),
+          const SizedBox(height: 32),
+        ],
       ),
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.symmetric(
-          horizontal: AppThemeEnhanced.spaceLg,
-          vertical: AppThemeEnhanced.spaceMd,
+    );
+  }
+
+  Widget _buildNumberPad(bool isConfirming) {
+    return Column(
+      children: [
+        for (var row = 0; row < 4; row++)
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 8),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                for (var col = 0; col < 3; col++)
+                  _buildNumberButton(row, col, isConfirming),
+              ],
+            ),
+          ),
+      ],
+    );
+  }
+
+  Widget _buildNumberButton(int row, int col, bool isConfirming) {
+    String? label;
+    IconData? icon;
+    VoidCallback? onTap;
+
+    if (row < 3) {
+      final number = row * 3 + col + 1;
+      label = number.toString();
+      onTap = () => _onNumberTap(number.toString(), isConfirming);
+    } else {
+      if (col == 0) {
+        return const SizedBox(width: 80, height: 64);
+      } else if (col == 1) {
+        label = '0';
+        onTap = () => _onNumberTap('0', isConfirming);
+      } else {
+        icon = Icons.backspace_outlined;
+        onTap = () => _onBackspace(isConfirming);
+      }
+    }
+
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 80,
+        height: 64,
+        margin: const EdgeInsets.symmetric(horizontal: 12),
+        decoration: BoxDecoration(
+          color: Theme.of(context).brightness == Brightness.dark
+              ? AppThemeEnhanced.neutral800
+              : AppThemeEnhanced.neutral100,
+          borderRadius: BorderRadius.circular(16),
         ),
-        child: ConstrainedBox(
-          constraints: BoxConstraints(
-            minHeight: MediaQuery.of(context).size.height -
-                MediaQuery.of(context).padding.top -
-                MediaQuery.of(context).padding.bottom -
-                (AppThemeEnhanced.spaceMd * 2),
-          ),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Column(
-                children: [
-                  const SizedBox(height: AppThemeEnhanced.space2xl),
-                  SlideInAnimation(
-                    child: Text(
-                      _pin.isEmpty ? 'Create Your PIN' : 'Confirm Your PIN',
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 32,
-                        fontWeight: FontWeight.w900,
-                        letterSpacing: -0.5,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
+        child: Center(
+          child: label != null
+              ? Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: 28,
+                    fontWeight: FontWeight.w600,
+                    color: Theme.of(context).brightness == Brightness.dark
+                        ? Colors.white
+                        : AppThemeEnhanced.neutral900,
                   ),
-                  const SizedBox(height: AppThemeEnhanced.spaceMd),
-                  SlideInAnimation(
-                    delay: const Duration(milliseconds: 200),
-                    child: Text(
-                      _pin.isEmpty
-                          ? 'Choose a 4-digit PIN to secure your app'
-                          : 'Enter your PIN again to confirm',
-                      style: TextStyle(
-                        color: Colors.white.withOpacity(0.85),
-                        fontSize: 16,
-                        fontWeight: FontWeight.w400,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                  ),
-                ],
-              ),
-              Column(
-                children: [
-                  SlideInAnimation(
-                    delay: const Duration(milliseconds: 400),
-                    child: _buildPinDisplay(_pin.isEmpty ? _pin : _confirmPin),
-                  ),
-                  const SizedBox(height: AppThemeEnhanced.space2xl),
-                  SlideInAnimation(
-                    delay: const Duration(milliseconds: 600),
-                    child: _buildNumericKeypad(),
-                  ),
-                ],
-              ),
-              const SizedBox(height: AppThemeEnhanced.spaceMd),
-            ],
-          ),
+                )
+              : Icon(
+                  icon,
+                  size: 24,
+                  color: Theme.of(context).brightness == Brightness.dark
+                      ? Colors.white70
+                      : AppThemeEnhanced.neutral600,
+                ),
         ),
       ),
     );
   }
 
-  Widget _buildBiometricSetupPage() {
-    return Container(
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            AppThemeEnhanced.info,
-            AppThemeEnhanced.info.withOpacity(0.8),
-            AppThemeEnhanced.primaryLight,
-          ],
-        ),
-      ),
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.all(AppThemeEnhanced.spaceLg),
-        child: ConstrainedBox(
-          constraints: BoxConstraints(
-            minHeight: MediaQuery.of(context).size.height -
-                MediaQuery.of(context).padding.top -
-                MediaQuery.of(context).padding.bottom -
-                (AppThemeEnhanced.spaceLg * 2),
-          ),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              SlideInAnimation(
-                child: Container(
-                  padding: const EdgeInsets.all(AppThemeEnhanced.space2xl),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    shape: BoxShape.circle,
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.1),
-                        blurRadius: 20,
-                        spreadRadius: 5,
-                      ),
-                    ],
-                  ),
-                  child: Icon(
-                    Icons.fingerprint,
-                    size: 80,
-                    color: AppThemeEnhanced.info,
-                  ),
-                ),
-              ),
-              const SizedBox(height: AppThemeEnhanced.space3xl),
-              SlideInAnimation(
-                delay: const Duration(milliseconds: 200),
-                child: const Text(
-                  'Biometric\nAuthentication',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 36,
-                    fontWeight: FontWeight.w900,
-                    letterSpacing: -0.5,
-                    height: 1.2,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-              ),
-              const SizedBox(height: AppThemeEnhanced.spaceLg),
-              SlideInAnimation(
-                delay: const Duration(milliseconds: 400),
-                child: Text(
-                  'Use your fingerprint or face recognition\nfor quick and secure access.',
-                  style: TextStyle(
-                    color: Colors.white.withOpacity(0.9),
-                    fontSize: 16,
-                    fontWeight: FontWeight.w400,
-                    height: 1.5,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-              ),
-              const SizedBox(height: AppThemeEnhanced.space3xl),
-              SlideInAnimation(
-                delay: const Duration(milliseconds: 600),
-                child: Consumer<AuthProvider>(
-                  builder: (context, authProvider, _) {
-                    return FutureBuilder<bool>(
-                      future: authProvider.isBiometricAvailable(),
-                      builder: (context, snapshot) {
-                        final isAvailable = snapshot.data ?? false;
+  void _onNumberTap(String number, bool isConfirming) {
+    HapticFeedback.lightImpact();
+    setState(() {
+      if (isConfirming) {
+        if (_confirmPin.length < 4) _confirmPin += number;
+        if (_confirmPin.length == 4) _validatePin();
+      } else {
+        if (_pin.length < 4) _pin += number;
+      }
+    });
+  }
 
-                        if (!isAvailable) {
-                          return Column(
-                            children: [
-                              Container(
-                                padding: const EdgeInsets.all(AppThemeEnhanced.spaceLg),
-                                decoration: BoxDecoration(
-                                  color: Colors.white.withOpacity(0.15),
-                                  borderRadius: BorderRadius.circular(AppThemeEnhanced.radiusLg),
-                                  border: Border.all(
-                                    color: Colors.white.withOpacity(0.3),
-                                  ),
-                                ),
-                                child: Text(
-                                  'Biometric authentication is not available on this device.',
-                                  style: TextStyle(
-                                    color: Colors.white.withOpacity(0.9),
-                                    fontSize: 15,
-                                  ),
-                                  textAlign: TextAlign.center,
-                                ),
-                              ),
-                              const SizedBox(height: AppThemeEnhanced.spaceLg),
-                              Padding(
-                                padding: const EdgeInsets.symmetric(horizontal: AppThemeEnhanced.spaceLg),
-                                child: SizedBox(
-                                  width: double.infinity,
-                                  height: 56,
-                                  child: ElevatedButton(
-                                    onPressed: () => _nextPage(),
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: Colors.white,
-                                      foregroundColor: AppThemeEnhanced.info,
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(AppThemeEnhanced.radiusFull),
-                                      ),
-                                      elevation: 8,
-                                      shadowColor: Colors.black.withOpacity(0.3),
-                                    ),
-                                    child: const Text(
-                                      'Continue',
-                                      style: TextStyle(
-                                        fontSize: 16,
-                                        fontWeight: FontWeight.w700,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ],
-                          );
-                        }
+  void _onBackspace(bool isConfirming) {
+    HapticFeedback.lightImpact();
+    setState(() {
+      if (isConfirming) {
+        if (_confirmPin.isNotEmpty) {
+          _confirmPin = _confirmPin.substring(0, _confirmPin.length - 1);
+        }
+      } else {
+        if (_pin.isNotEmpty) {
+          _pin = _pin.substring(0, _pin.length - 1);
+        }
+      }
+    });
+  }
 
-                        return Column(
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.all(AppThemeEnhanced.spaceMd),
-                              decoration: BoxDecoration(
-                                color: Colors.white.withOpacity(0.15),
-                                borderRadius: BorderRadius.circular(AppThemeEnhanced.radiusLg),
-                                border: Border.all(
-                                  color: Colors.white.withOpacity(0.3),
-                                ),
-                              ),
-                              child: SwitchListTile(
-                                title: Text(
-                                  'Enable Biometric Authentication',
-                                  style: TextStyle(
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                                subtitle: Text(
-                                  'Use fingerprint or face recognition',
-                                  style: TextStyle(
-                                    color: Colors.white.withOpacity(0.8),
-                                  ),
-                                ),
-                                value: _biometricEnabled,
-                                onChanged: (value) {
-                                  setState(() => _biometricEnabled = value);
-                                },
-                                activeThumbColor: Colors.white,
-                                activeTrackColor: Colors.white.withOpacity(0.5),
-                              ),
-                            ),
-                            const SizedBox(height: AppThemeEnhanced.spaceLg),
-                            Padding(
-                              padding: const EdgeInsets.symmetric(horizontal: AppThemeEnhanced.spaceLg),
-                              child: SizedBox(
-                                width: double.infinity,
-                                height: 56,
-                                child: ElevatedButton(
-                                  onPressed: () => _nextPage(),
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: Colors.white,
-                                    foregroundColor: AppThemeEnhanced.info,
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(AppThemeEnhanced.radiusFull),
-                                    ),
-                                    elevation: 8,
-                                    shadowColor: Colors.black.withOpacity(0.3),
-                                  ),
-                                  child: const Text(
-                                    'Continue',
-                                    style: TextStyle(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.w700,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ],
-                        );
-                      },
-                    );
-                  },
+  Future<void> _validatePin() async {
+    if (_pin == _confirmPin) {
+      final authProvider = Provider.of<AuthProvider>(context, listen: false);
+      final success = await authProvider.setupPin(_pin);
+      if (success && mounted) {
+        if (_biometricAvailable) {
+          _nextPage();
+        } else {
+          _pageController.jumpToPage(_biometricAvailable ? 3 : 2);
+        }
+      }
+    } else {
+      HapticFeedback.heavyImpact();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('PINs do not match. Try again.'),
+          backgroundColor: AppThemeEnhanced.error,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        ),
+      );
+      setState(() {
+        _confirmPin = '';
+      });
+    }
+  }
+
+  Widget _buildBiometricPage() {
+    return Padding(
+      padding: const EdgeInsets.all(32),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(28),
+            decoration: BoxDecoration(
+              color: AppThemeEnhanced.success.withOpacity(0.1),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              Icons.fingerprint,
+              size: 72,
+              color: AppThemeEnhanced.success,
+            ),
+          ),
+          const SizedBox(height: 48),
+          Text(
+            'Enable Biometrics?',
+            style: TextStyle(
+              fontSize: 26,
+              fontWeight: FontWeight.w700,
+              color: Theme.of(context).brightness == Brightness.dark
+                  ? Colors.white
+                  : AppThemeEnhanced.neutral900,
+            ),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            'Use fingerprint or face recognition\nfor faster, secure access',
+            style: TextStyle(
+              fontSize: 15,
+              color: Theme.of(context).brightness == Brightness.dark
+                  ? Colors.white60
+                  : AppThemeEnhanced.neutral500,
+              height: 1.5,
+            ),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 48),
+          SizedBox(
+            width: double.infinity,
+            height: 56,
+            child: ElevatedButton(
+              onPressed: () async {
+                final authProvider =
+                    Provider.of<AuthProvider>(context, listen: false);
+                await authProvider.setBiometricEnabled(true);
+                _biometricEnabled = true;
+                _nextPage();
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppThemeEnhanced.success,
+                foregroundColor: Colors.white,
+                elevation: 0,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
                 ),
               ),
-            ],
+              child: const Text(
+                'Enable Biometrics',
+                style: TextStyle(fontSize: 17, fontWeight: FontWeight.w600),
+              ),
+            ),
           ),
-        ),
+          const SizedBox(height: 16),
+          TextButton(
+            onPressed: _nextPage,
+            child: Text(
+              'Skip',
+              style: TextStyle(
+                color: Theme.of(context).brightness == Brightness.dark
+                    ? Colors.white60
+                    : AppThemeEnhanced.neutral500,
+                fontSize: 15,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
 
   Widget _buildCompletePage() {
     return Container(
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            AppThemeEnhanced.success,
-            AppThemeEnhanced.success.withOpacity(0.8),
-            AppThemeEnhanced.primaryLight,
-          ],
-        ),
-      ),
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.all(AppThemeEnhanced.spaceLg),
-        child: ConstrainedBox(
-          constraints: BoxConstraints(
-            minHeight: MediaQuery.of(context).size.height -
-                MediaQuery.of(context).padding.top -
-                MediaQuery.of(context).padding.bottom -
-                (AppThemeEnhanced.spaceLg * 2),
-          ),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              SlideInAnimation(
-                child: Container(
-                  padding: const EdgeInsets.all(AppThemeEnhanced.space2xl),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    shape: BoxShape.circle,
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.1),
-                        blurRadius: 20,
-                        spreadRadius: 5,
-                      ),
-                    ],
-                  ),
-                  child: Icon(
-                    Icons.check_circle,
-                    size: 80,
-                    color: AppThemeEnhanced.success,
-                  ),
-                ),
-              ),
-              const SizedBox(height: AppThemeEnhanced.space3xl),
-              SlideInAnimation(
-                delay: const Duration(milliseconds: 200),
-                child: const Text(
-                  'Setup Complete!',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 36,
-                    fontWeight: FontWeight.w900,
-                    letterSpacing: -0.5,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-              ),
-              const SizedBox(height: AppThemeEnhanced.spaceLg),
-              SlideInAnimation(
-                delay: const Duration(milliseconds: 400),
-                child: Text(
-                  'Your financial data is now secure.\nYou can change these settings anytime in the app.',
-                  style: TextStyle(
-                    color: Colors.white.withOpacity(0.9),
-                    fontSize: 16,
-                    fontWeight: FontWeight.w400,
-                    height: 1.5,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-              ),
-              const SizedBox(height: AppThemeEnhanced.space3xl),
-              SlideInAnimation(
-                delay: const Duration(milliseconds: 600),
-                child: Consumer<AuthProvider>(
-                  builder: (context, authProvider, _) {
-                    return Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: AppThemeEnhanced.spaceLg),
-                      child: SizedBox(
-                        width: double.infinity,
-                        height: 56,
-                        child: ElevatedButton(
-                          onPressed: authProvider.isLoading ? null : _completeSetup,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.white,
-                            foregroundColor: AppThemeEnhanced.success,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(AppThemeEnhanced.radiusFull),
-                            ),
-                            elevation: 8,
-                            shadowColor: Colors.black.withOpacity(0.3),
-                          ),
-                          child: authProvider.isLoading
-                              ? SizedBox(
-                                  width: 24,
-                                  height: 24,
-                                  child: CircularProgressIndicator(
-                                    color: AppThemeEnhanced.success,
-                                    strokeWidth: 3,
-                                  ),
-                                )
-                              : const Text(
-                                  'Start Using WizeBudge',
-                                  style: TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w700,
-                                  ),
-                                ),
-                        ),
-                      ),
-                    );
-                  },
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildPinDisplay(String pin) {
-    return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppThemeEnhanced.space2xl,
-        vertical: AppThemeEnhanced.spaceLg,
-      ),
-      decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.15),
-        borderRadius: BorderRadius.circular(AppThemeEnhanced.radiusFull),
-        border: Border.all(
-          color: Colors.white.withOpacity(0.3),
-          width: 1,
-        ),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
+      decoration: BoxDecoration(gradient: AppThemeEnhanced.successGradient),
+      padding: const EdgeInsets.all(32),
+      child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
-        children: List.generate(4, (index) {
-          return Container(
-            margin: const EdgeInsets.symmetric(horizontal: 10),
-            width: 16,
-            height: 16,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(28),
             decoration: BoxDecoration(
+              color: Colors.white,
               shape: BoxShape.circle,
-              color: index < pin.length
-                  ? Colors.white
-                  : Colors.transparent,
-              border: Border.all(
-                color: Colors.white.withValues(alpha: 0.6),
-                width: 2,
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.15),
+                  blurRadius: 30,
+                  spreadRadius: 5,
+                ),
+              ],
+            ),
+            child: const Icon(
+              Icons.check_rounded,
+              size: 72,
+              color: Color(0xFF10B981),
+            ),
+          ),
+          const SizedBox(height: 48),
+          const Text(
+            'You\'re All Set!',
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 32,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          const SizedBox(height: 16),
+          Text(
+            _biometricEnabled
+                ? 'Your app is secured with PIN and biometrics'
+                : 'Your app is secured with a PIN',
+            style: TextStyle(
+              color: Colors.white.withOpacity(0.9),
+              fontSize: 16,
+              height: 1.5,
+            ),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 64),
+          SizedBox(
+            width: double.infinity,
+            height: 56,
+            child: ElevatedButton(
+              onPressed: () {
+                Navigator.of(context).pushReplacementNamed('/main');
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.white,
+                foregroundColor: AppThemeEnhanced.success,
+                elevation: 0,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
+              ),
+              child: const Text(
+                'Start Using WizeBudge',
+                style: TextStyle(fontSize: 17, fontWeight: FontWeight.w600),
               ),
             ),
-          );
-        }),
-      ),
-    );
-  }
-
-  Widget _buildNumericKeypad() {
-    return Container(
-      constraints: const BoxConstraints(maxWidth: 350),
-      child: GridView.count(
-        shrinkWrap: true,
-        crossAxisCount: 3,
-        childAspectRatio: 1.1,
-        mainAxisSpacing: 16,
-        crossAxisSpacing: 16,
-        padding: const EdgeInsets.symmetric(horizontal: AppThemeEnhanced.spaceLg),
-        children: [
-          ...List.generate(9, (index) {
-            final number = (index + 1).toString();
-            return _buildKeypadButton(number);
-          }),
-          const SizedBox(), // Empty space
-          _buildKeypadButton('0'),
-          _buildKeypadButton('⌫', isBackspace: true),
+          ),
         ],
       ),
     );
   }
 
-  Widget _buildKeypadButton(String text, {bool isBackspace = false}) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: text.isEmpty ? null : () => _onKeypadTap(text, isBackspace),
-        borderRadius: BorderRadius.circular(AppThemeEnhanced.radiusFull),
-        splashColor: Colors.white.withOpacity(0.2),
-        highlightColor: Colors.white.withOpacity(0.1),
-        child: Container(
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            color: Colors.white.withValues(alpha: 0.2),
-            border: Border.all(
-              color: Colors.white.withValues(alpha: 0.4),
-              width: 1.5,
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.1),
-                blurRadius: 8,
-                offset: const Offset(0, 2),
-              ),
-            ],
-          ),
-          child: Center(
-            child: isBackspace
-                ? const Icon(
-                    Icons.backspace_outlined,
-                    color: Colors.white,
-                    size: 24,
-                  )
-                : Text(
-                    text,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 28,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  void _onKeypadTap(String value, bool isBackspace) {
-    setState(() {
-      if (isBackspace) {
-        if (_pin.isEmpty) {
-          if (_confirmPin.isNotEmpty) {
-            _confirmPin = _confirmPin.substring(0, _confirmPin.length - 1);
-          }
-        } else {
-          _pin = _pin.substring(0, _pin.length - 1);
-        }
-      } else {
-        if (_pin.length < 4) {
-          _pin += value;
-          if (_pin.length == 4) {
-            // PIN entered, now ask for confirmation
-            Future.delayed(const Duration(milliseconds: 300), () {
-              setState(() {});
-            });
-          }
-        } else if (_confirmPin.length < 4) {
-          _confirmPin += value;
-          if (_confirmPin.length == 4) {
-            _validatePin();
-          }
-        }
-      }
-    });
-  }
-
-  void _validatePin() {
-    if (_pin == _confirmPin) {
-      // PINs match, proceed to next page
-      Future.delayed(const Duration(milliseconds: 500), () {
-        _nextPage();
-      });
-    } else {
-      // PINs don't match, reset
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('PINs do not match. Please try again.'),
-          backgroundColor: Colors.red,
-        ),
-      );
-      setState(() {
-        _pin = '';
-        _confirmPin = '';
-      });
-    }
-  }
-
-  void _nextPage() {
-    if (_currentPage < 3) {
-      _pageController.nextPage(
-        duration: const Duration(milliseconds: 300),
-        curve: Curves.easeInOut,
-      );
-    }
-  }
-
-  Future<void> _completeSetup() async {
+  Future<void> _skipSetup() async {
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
-
-    // Set up PIN
-    final success = await authProvider.setupPin(_pin);
-    if (!success) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Failed to set up authentication. Please try again.'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-      return;
-    }
-
-    // Set biometric preference
-    await authProvider.setBiometricEnabled(_biometricEnabled);
-
-    // Setup complete, navigate to main app
+    // Set a default PIN for skip (user can change later)
+    await authProvider.setupPin('0000');
     if (mounted) {
       Navigator.of(context).pushReplacementNamed('/main');
     }

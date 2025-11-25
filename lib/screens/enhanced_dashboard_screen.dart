@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../providers/expense_provider.dart';
 import '../providers/income_provider.dart';
+import '../providers/sync_provider.dart';
 import '../services/notification_service.dart';
 import '../services/template_service.dart';
 import '../widgets/enhanced_expense_card.dart';
@@ -142,6 +144,60 @@ class _EnhancedDashboardScreenState extends State<EnhancedDashboardScreen> {
                               child: const Icon(Icons.flash_on, color: Colors.white, size: 20),
                             ),
                             onPressed: _showTemplates,
+                          ),
+                          // Cloud Sync Button
+                          Consumer<SyncProvider>(
+                            builder: (context, syncProvider, _) {
+                              final isSignedIn = FirebaseAuth.instance.currentUser != null;
+                              return IconButton(
+                                icon: syncProvider.isSyncing
+                                    ? const SizedBox(
+                                        width: 20,
+                                        height: 20,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                          valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                                        ),
+                                      )
+                                    : Icon(
+                                        isSignedIn ? Icons.cloud_done : Icons.cloud_off,
+                                        color: Colors.white,
+                                        size: 22,
+                                      ),
+                                onPressed: isSignedIn
+                                    ? () async {
+                                        final expenses = Provider.of<ExpenseProvider>(context, listen: false).expenses;
+                                        final incomes = Provider.of<IncomeProvider>(context, listen: false).incomes;
+                                        await syncProvider.syncExpenses(expenses);
+                                        await syncProvider.syncIncomes(incomes);
+                                        if (context.mounted) {
+                                          ScaffoldMessenger.of(context).showSnackBar(
+                                            SnackBar(
+                                              content: const Text('Data synced to cloud'),
+                                              backgroundColor: AppThemeEnhanced.success,
+                                              behavior: SnackBarBehavior.floating,
+                                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                            ),
+                                          );
+                                        }
+                                      }
+                                    : () {
+                                        ScaffoldMessenger.of(context).showSnackBar(
+                                          SnackBar(
+                                            content: const Text('Sign in to sync your data'),
+                                            backgroundColor: AppThemeEnhanced.info,
+                                            behavior: SnackBarBehavior.floating,
+                                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                            action: SnackBarAction(
+                                              label: 'Sign In',
+                                              textColor: Colors.white,
+                                              onPressed: () => Navigator.pushNamed(context, '/firebase-auth'),
+                                            ),
+                                          ),
+                                        );
+                                      },
+                              );
+                            },
                           ),
                           // Notification with Badge
                           Stack(

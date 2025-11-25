@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../../providers/auth_provider.dart';
+import 'package:firebase_auth/firebase_auth.dart' as firebase_auth;
+import '../../providers/auth_provider.dart' as app_auth;
 import 'auth_setup_screen.dart';
 import 'auth_lock_screen.dart';
-
 import '../../main.dart';
 
 class AuthWrapper extends StatefulWidget {
@@ -18,10 +18,8 @@ class _AuthWrapperState extends State<AuthWrapper> with WidgetsBindingObserver {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-
-    // Initialize authentication state
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      Provider.of<AuthProvider>(context, listen: false).initialize();
+      Provider.of<app_auth.AuthProvider>(context, listen: false).initialize();
     });
   }
 
@@ -33,48 +31,44 @@ class _AuthWrapperState extends State<AuthWrapper> with WidgetsBindingObserver {
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    final authProvider = Provider.of<AuthProvider>(context, listen: false);
-
+    final authProvider = Provider.of<app_auth.AuthProvider>(context, listen: false);
     switch (state) {
       case AppLifecycleState.resumed:
-        // App came back to foreground, check if should auto-lock
         authProvider.checkAutoLock();
         break;
       case AppLifecycleState.paused:
       case AppLifecycleState.inactive:
-        // App going to background, update activity time
         authProvider.updateActivity();
         break;
-      case AppLifecycleState.detached:
-        break;
-      case AppLifecycleState.hidden:
+      default:
         break;
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    return Consumer<AuthProvider>(
+    return Consumer<app_auth.AuthProvider>(
       builder: (context, authProvider, _) {
-        // Show loading screen while initializing
         if (authProvider.isLoading) {
           return const Scaffold(
             body: Center(child: CircularProgressIndicator()),
           );
         }
 
-        // Show setup screen if authentication is not set up
         if (!authProvider.isSetupComplete) {
           return const AuthSetupScreen();
         }
 
-        // Show lock screen if not authenticated
         if (!authProvider.isAuthenticated) {
           return const AuthLockScreen();
         }
 
-        // Show main app if authenticated
-        return const BottomNavWrapper();
+        return StreamBuilder<firebase_auth.User?>(
+          stream: firebase_auth.FirebaseAuth.instance.authStateChanges(),
+          builder: (context, snapshot) {
+            return const BottomNavWrapper();
+          },
+        );
       },
     );
   }

@@ -148,7 +148,10 @@ class _EnhancedDashboardScreenState extends State<EnhancedDashboardScreen> {
                           // Cloud Sync Button
                           Consumer<SyncProvider>(
                             builder: (context, syncProvider, _) {
-                              final isSignedIn = FirebaseAuth.instance.currentUser != null;
+                              bool isSignedIn = false;
+                              try {
+                                isSignedIn = FirebaseAuth.instance.currentUser != null;
+                              } catch (_) {}
                               return IconButton(
                                 icon: syncProvider.isSyncing
                                     ? const SizedBox(

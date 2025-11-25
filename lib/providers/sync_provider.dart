@@ -6,7 +6,6 @@ import '../models/expense.dart';
 import '../models/income.dart';
 
 class SyncProvider extends ChangeNotifier {
-  final FirestoreService _firestoreService = FirestoreService();
   final Connectivity _connectivity = Connectivity();
 
   bool _isSyncing = false;
@@ -18,8 +17,22 @@ class SyncProvider extends ChangeNotifier {
   bool get isOnline => _isOnline;
   DateTime? get lastSyncTime => _lastSyncTime;
   String? get syncError => _syncError;
-  bool get isSignedIn => FirebaseAuth.instance.currentUser != null;
-  User? get currentUser => FirebaseAuth.instance.currentUser;
+  
+  bool get isSignedIn {
+    try {
+      return FirebaseAuth.instance.currentUser != null;
+    } catch (_) {
+      return false;
+    }
+  }
+  
+  User? get currentUser {
+    try {
+      return FirebaseAuth.instance.currentUser;
+    } catch (_) {
+      return null;
+    }
+  }
 
   SyncProvider() {
     _initConnectivity();
@@ -41,7 +54,7 @@ class SyncProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      await _firestoreService.syncExpenses(expenses);
+      await FirestoreService().syncExpenses(expenses);
       _lastSyncTime = DateTime.now();
     } catch (e) {
       _syncError = 'Failed to sync expenses';
@@ -59,7 +72,7 @@ class SyncProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      await _firestoreService.syncIncomes(incomes);
+      await FirestoreService().syncIncomes(incomes);
       _lastSyncTime = DateTime.now();
     } catch (e) {
       _syncError = 'Failed to sync incomes';
@@ -72,28 +85,28 @@ class SyncProvider extends ChangeNotifier {
   Future<void> addExpenseToCloud(Expense expense) async {
     if (!isSignedIn) return;
     try {
-      await _firestoreService.addExpense(expense);
+      await FirestoreService().addExpense(expense);
     } catch (_) {}
   }
 
   Future<void> addIncomeToCloud(Income income) async {
     if (!isSignedIn) return;
     try {
-      await _firestoreService.addIncome(income);
+      await FirestoreService().addIncome(income);
     } catch (_) {}
   }
 
   Future<void> deleteExpenseFromCloud(int id) async {
     if (!isSignedIn) return;
     try {
-      await _firestoreService.deleteExpense(id);
+      await FirestoreService().deleteExpense(id);
     } catch (_) {}
   }
 
   Future<void> deleteIncomeFromCloud(int id) async {
     if (!isSignedIn) return;
     try {
-      await _firestoreService.deleteIncome(id);
+      await FirestoreService().deleteIncome(id);
     } catch (_) {}
   }
 

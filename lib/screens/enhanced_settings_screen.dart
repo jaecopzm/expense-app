@@ -494,7 +494,12 @@ class EnhancedSettingsScreen extends StatelessWidget {
 
   Widget _buildAccountCard(BuildContext context) {
     final syncProvider = Provider.of<SyncProvider>(context);
-    final user = FirebaseAuth.instance.currentUser;
+    User? user;
+    try {
+      user = FirebaseAuth.instance.currentUser;
+    } catch (_) {
+      user = null;
+    }
     final isSignedIn = user != null;
 
     return Container(

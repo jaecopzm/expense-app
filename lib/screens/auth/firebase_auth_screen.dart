@@ -17,8 +17,6 @@ class _FirebaseAuthScreenState extends State<FirebaseAuthScreen>
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _nameController = TextEditingController();
-  final _authService = FirebaseAuthService();
-  final _firestoreService = FirestoreService();
 
   bool _isLogin = true;
   bool _isLoading = false;
@@ -69,18 +67,19 @@ class _FirebaseAuthScreenState extends State<FirebaseAuthScreen>
 
     final email = _emailController.text.trim();
     final password = _passwordController.text;
+    final authService = FirebaseAuthService();
 
     AuthResponse response;
     if (_isLogin) {
-      response = await _authService.signInWithEmail(email, password);
+      response = await authService.signInWithEmail(email, password);
     } else {
-      response = await _authService.signUpWithEmail(email, password);
+      response = await authService.signUpWithEmail(email, password);
       if (response.isSuccess && response.user != null) {
         final name = _nameController.text.trim();
         if (name.isNotEmpty) {
-          await _authService.updateDisplayName(name);
+          await authService.updateDisplayName(name);
         }
-        await _firestoreService.createUserProfile(
+        await FirestoreService().createUserProfile(
           response.user!.uid,
           email,
           name.isNotEmpty ? name : null,
@@ -110,7 +109,7 @@ class _FirebaseAuthScreenState extends State<FirebaseAuthScreen>
     }
 
     setState(() => _isLoading = true);
-    final response = await _authService.resetPassword(email);
+    final response = await FirebaseAuthService().resetPassword(email);
     
     if (!mounted) return;
     setState(() => _isLoading = false);

@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:firebase_auth/firebase_auth.dart' as firebase_auth;
-import '../../providers/auth_provider.dart' as app_auth;
+import '../../providers/auth_provider.dart';
 import 'auth_setup_screen.dart';
 import 'auth_lock_screen.dart';
 import '../../main.dart';
@@ -19,7 +18,7 @@ class _AuthWrapperState extends State<AuthWrapper> with WidgetsBindingObserver {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      Provider.of<app_auth.AuthProvider>(context, listen: false).initialize();
+      Provider.of<AuthProvider>(context, listen: false).initialize();
     });
   }
 
@@ -31,7 +30,7 @@ class _AuthWrapperState extends State<AuthWrapper> with WidgetsBindingObserver {
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    final authProvider = Provider.of<app_auth.AuthProvider>(context, listen: false);
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
     switch (state) {
       case AppLifecycleState.resumed:
         authProvider.checkAutoLock();
@@ -47,7 +46,7 @@ class _AuthWrapperState extends State<AuthWrapper> with WidgetsBindingObserver {
 
   @override
   Widget build(BuildContext context) {
-    return Consumer<app_auth.AuthProvider>(
+    return Consumer<AuthProvider>(
       builder: (context, authProvider, _) {
         if (authProvider.isLoading) {
           return const Scaffold(
@@ -63,12 +62,7 @@ class _AuthWrapperState extends State<AuthWrapper> with WidgetsBindingObserver {
           return const AuthLockScreen();
         }
 
-        return StreamBuilder<firebase_auth.User?>(
-          stream: firebase_auth.FirebaseAuth.instance.authStateChanges(),
-          builder: (context, snapshot) {
-            return const BottomNavWrapper();
-          },
-        );
+        return const BottomNavWrapper();
       },
     );
   }

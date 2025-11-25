@@ -8,22 +8,44 @@ class FirestoreService {
   factory FirestoreService() => _instance;
   FirestoreService._internal();
 
-  final FirebaseFirestore _db = FirebaseFirestore.instance;
+  FirebaseFirestore? _db;
   
-  String? get _userId => FirebaseAuth.instance.currentUser?.uid;
+  FirebaseFirestore? get db {
+    try {
+      _db ??= FirebaseFirestore.instance;
+      return _db;
+    } catch (_) {
+      return null;
+    }
+  }
+  
+  String? get _userId {
+    try {
+      return FirebaseAuth.instance.currentUser?.uid;
+    } catch (_) {
+      return null;
+    }
+  }
 
-  CollectionReference<Map<String, dynamic>> get _expensesRef =>
-      _db.collection('users').doc(_userId).collection('expenses');
+  CollectionReference<Map<String, dynamic>>? get _expensesRef {
+    if (db == null || _userId == null) return null;
+    return db!.collection('users').doc(_userId).collection('expenses');
+  }
 
-  CollectionReference<Map<String, dynamic>> get _incomesRef =>
-      _db.collection('users').doc(_userId).collection('incomes');
+  CollectionReference<Map<String, dynamic>>? get _incomesRef {
+    if (db == null || _userId == null) return null;
+    return db!.collection('users').doc(_userId).collection('incomes');
+  }
 
-  CollectionReference<Map<String, dynamic>> get _userRef =>
-      _db.collection('users');
+  CollectionReference<Map<String, dynamic>>? get _userRef {
+    if (db == null) return null;
+    return db!.collection('users');
+  }
 
   // User profile
   Future<void> createUserProfile(String uid, String email, String? name) async {
-    await _userRef.doc(uid).set({
+    if (_userRef == null) return;
+    await _userRef!.doc(uid).set({
       'email': email,
       'displayName': name ?? '',
       'createdAt': FieldValue.serverTimestamp(),
@@ -32,15 +54,15 @@ class FirestoreService {
   }
 
   Future<Map<String, dynamic>?> getUserProfile() async {
-    if (_userId == null) return null;
-    final doc = await _userRef.doc(_userId).get();
+    if (_userRef == null || _userId == null) return null;
+    final doc = await _userRef!.doc(_userId).get();
     return doc.data();
   }
 
   // Expenses
   Future<void> addExpense(Expense expense) async {
-    if (_userId == null) return;
-    await _expensesRef.doc(expense.id.toString()).set({
+    if (_expensesRef == null) return;
+    await _expensesRef!.doc(expense.id.toString()).set({
       'title': expense.title,
       'amount': expense.amount,
       'category': expense.category,
@@ -51,8 +73,8 @@ class FirestoreService {
   }
 
   Future<void> updateExpense(Expense expense) async {
-    if (_userId == null) return;
-    await _expensesRef.doc(expense.id.toString()).update({
+    if (_expensesRef == null) return;
+    await _expensesRef!.doc(expense.id.toString()).update({
       'title': expense.title,
       'amount': expense.amount,
       'category': expense.category,
@@ -63,13 +85,13 @@ class FirestoreService {
   }
 
   Future<void> deleteExpense(int id) async {
-    if (_userId == null) return;
-    await _expensesRef.doc(id.toString()).delete();
+    if (_expensesRef == null) return;
+    await _expensesRef!.doc(id.toString()).delete();
   }
 
   Stream<List<Expense>> getExpensesStream() {
-    if (_userId == null) return Stream.value([]);
-    return _expensesRef
+    if (_expensesRef == null) return Stream.value([]);
+    return _expensesRef!
         .orderBy('date', descending: true)
         .snapshots()
         .map((snapshot) => snapshot.docs.map((doc) {
@@ -87,8 +109,8 @@ class FirestoreService {
 
   // Incomes
   Future<void> addIncome(Income income) async {
-    if (_userId == null) return;
-    await _incomesRef.doc(income.id.toString()).set({
+    if (_incomesRef == null) return;
+    await _incomesRef!.doc(income.id.toString()).set({
       'title': income.title,
       'amount': income.amount,
       'category': income.category,
@@ -99,8 +121,8 @@ class FirestoreService {
   }
 
   Future<void> updateIncome(Income income) async {
-    if (_userId == null) return;
-    await _incomesRef.doc(income.id.toString()).update({
+    if (_incomesRef == null) return;
+    await _incomesRef!.doc(income.id.toString()).update({
       'title': income.title,
       'amount': income.amount,
       'category': income.category,
@@ -111,13 +133,13 @@ class FirestoreService {
   }
 
   Future<void> deleteIncome(int id) async {
-    if (_userId == null) return;
-    await _incomesRef.doc(id.toString()).delete();
+    if (_incomesRef == null) return;
+    await _incomesRef!.doc(id.toString()).delete();
   }
 
   Stream<List<Income>> getIncomesStream() {
-    if (_userId == null) return Stream.value([]);
-    return _incomesRef
+    if (_incomesRef == null) return Stream.value([]);
+    return _incomesRef!
         .orderBy('date', descending: true)
         .snapshots()
         .map((snapshot) => snapshot.docs.map((doc) {
@@ -135,10 +157,10 @@ class FirestoreService {
 
   // Sync local data to cloud
   Future<void> syncExpenses(List<Expense> expenses) async {
-    if (_userId == null) return;
-    final batch = _db.batch();
+    if (db == null || _userId == null) return;
+    final batch = db!.batch();
     for (final expense in expenses) {
-      batch.set(_expensesRef.doc(expense.id.toString()), {
+      batch.set(_expensesRef!.doc(expense.id.toString()), {
         'title': expense.title,
         'amount': expense.amount,
         'category': expense.category,
@@ -151,10 +173,10 @@ class FirestoreService {
   }
 
   Future<void> syncIncomes(List<Income> incomes) async {
-    if (_userId == null) return;
-    final batch = _db.batch();
+    if (db == null || _userId == null) return;
+    final batch = db!.batch();
     for (final income in incomes) {
-      batch.set(_incomesRef.doc(income.id.toString()), {
+      batch.set(_incomesRef!.doc(income.id.toString()), {
         'title': income.title,
         'amount': income.amount,
         'category': income.category,

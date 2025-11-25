@@ -6,6 +6,7 @@ import '../providers/income_provider.dart';
 import '../theme/app_theme_enhanced.dart';
 import '../widgets/enhanced_inputs.dart';
 import '../widgets/animated_widgets.dart';
+import '../utils/custom_snackbar.dart';
 
 class EnhancedAddIncomeScreen extends StatefulWidget {
   const EnhancedAddIncomeScreen({super.key});
@@ -82,21 +83,10 @@ class _EnhancedAddIncomeScreenState extends State<EnhancedAddIncomeScreen>
 
       if (mounted) {
         Navigator.pop(context);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Row(
-              children: [
-                Icon(Icons.check_circle, color: Colors.white),
-                SizedBox(width: 8),
-                Text('Income added successfully!'),
-              ],
-            ),
-            behavior: SnackBarBehavior.floating,
-            backgroundColor: AppThemeEnhanced.success,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(AppThemeEnhanced.radiusMd),
-            ),
-          ),
+        CustomSnackbar.show(
+          context,
+          message: 'Income added successfully!',
+          type: SnackbarType.success,
         );
       }
     }
@@ -180,7 +170,7 @@ class _EnhancedAddIncomeScreenState extends State<EnhancedAddIncomeScreen>
                                 decoration: BoxDecoration(
                                   color: Theme.of(
                                     context,
-                                  ).colorScheme.surfaceVariant,
+                                  ).colorScheme.surfaceContainerHighest,
                                   borderRadius: BorderRadius.circular(
                                     AppThemeEnhanced.radiusMd,
                                   ),

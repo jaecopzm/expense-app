@@ -3,12 +3,16 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../models/expense.dart';
 import '../providers/expense_provider.dart';
+import '../services/template_service.dart';
 import '../theme/app_theme_enhanced.dart';
 import '../widgets/enhanced_inputs.dart';
 import '../widgets/animated_widgets.dart';
+import '../utils/custom_snackbar.dart';
 
 class EnhancedAddExpenseScreen extends StatefulWidget {
-  const EnhancedAddExpenseScreen({super.key});
+  final ExpenseTemplate? template;
+  
+  const EnhancedAddExpenseScreen({super.key, this.template});
 
   @override
   State<EnhancedAddExpenseScreen> createState() =>
@@ -41,6 +45,7 @@ class _EnhancedAddExpenseScreenState extends State<EnhancedAddExpenseScreen>
   @override
   void initState() {
     super.initState();
+    
     _animationController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 300),
@@ -50,6 +55,20 @@ class _EnhancedAddExpenseScreenState extends State<EnhancedAddExpenseScreen>
       curve: Curves.easeOutBack,
     );
     _animationController.forward();
+    
+    // Initialize with template data if provided
+    if (widget.template != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        setState(() {
+          _titleController.text = widget.template!.title;
+          _amountController.text = widget.template!.amount.toString();
+          _category = widget.template!.category;
+          if (widget.template!.notes != null) {
+            _noteController.text = widget.template!.notes!;
+          }
+        });
+      });
+    }
   }
 
   @override
@@ -82,21 +101,10 @@ class _EnhancedAddExpenseScreenState extends State<EnhancedAddExpenseScreen>
 
       if (mounted) {
         Navigator.pop(context);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Row(
-              children: [
-                Icon(Icons.check_circle, color: Colors.white),
-                SizedBox(width: 8),
-                Text('Expense added successfully!'),
-              ],
-            ),
-            behavior: SnackBarBehavior.floating,
-            backgroundColor: AppThemeEnhanced.success,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(AppThemeEnhanced.radiusMd),
-            ),
-          ),
+        CustomSnackbar.show(
+          context,
+          message: 'Expense added successfully!',
+          type: SnackbarType.success,
         );
       }
     }
@@ -104,27 +112,28 @@ class _EnhancedAddExpenseScreenState extends State<EnhancedAddExpenseScreen>
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Theme.of(context).scaffoldBackgroundColor,
-        borderRadius: const BorderRadius.vertical(
-          top: Radius.circular(AppThemeEnhanced.radius2xl),
+    return Scaffold(
+      body: Container(
+        decoration: BoxDecoration(
+          color: Theme.of(context).scaffoldBackgroundColor,
+          borderRadius: const BorderRadius.vertical(
+            top: Radius.circular(AppThemeEnhanced.radius2xl),
+          ),
         ),
-      ),
-      child: DraggableScrollableSheet(
-        initialChildSize: 0.9,
-        minChildSize: 0.5,
-        maxChildSize: 0.95,
-        expand: false,
-        builder: (context, scrollController) {
-          return ScaleTransition(
-            scale: _scaleAnimation,
-            child: Column(
-              children: [
-                // Handle bar
-                Container(
-                  margin: const EdgeInsets.symmetric(
-                    vertical: AppThemeEnhanced.spaceMd,
+        child: DraggableScrollableSheet(
+          initialChildSize: 0.9,
+          minChildSize: 0.5,
+          maxChildSize: 0.95,
+          expand: false,
+          builder: (context, scrollController) {
+            return ScaleTransition(
+              scale: _scaleAnimation,
+              child: Column(
+                children: [
+                  // Handle bar
+                  Container(
+                    margin: const EdgeInsets.symmetric(
+                      vertical: AppThemeEnhanced.spaceMd,
                   ),
                   width: 40,
                   height: 4,
@@ -180,7 +189,7 @@ class _EnhancedAddExpenseScreenState extends State<EnhancedAddExpenseScreen>
                                 decoration: BoxDecoration(
                                   color: Theme.of(
                                     context,
-                                  ).colorScheme.surfaceVariant,
+                                  ).colorScheme.surfaceContainerHighest,
                                   borderRadius: BorderRadius.circular(
                                     AppThemeEnhanced.radiusMd,
                                   ),
@@ -234,10 +243,12 @@ class _EnhancedAddExpenseScreenState extends State<EnhancedAddExpenseScreen>
                                   ),
                                 ],
                                 validator: (v) {
-                                  if (v?.isEmpty ?? true)
+                                  if (v?.isEmpty ?? true) {
                                     return 'Please enter an amount';
-                                  if (double.tryParse(v!) == null)
+                                  }
+                                  if (double.tryParse(v!) == null) {
                                     return 'Please enter a valid number';
+                                  }
                                   return null;
                                 },
                               ),
@@ -340,6 +351,7 @@ class _EnhancedAddExpenseScreenState extends State<EnhancedAddExpenseScreen>
           );
         },
       ),
+    ),
     );
   }
 }

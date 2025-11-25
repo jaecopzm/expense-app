@@ -32,12 +32,12 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
       return;
     }
 
-    const Set<String> _kIds = {
+    const Set<String> kIds = {
       'spend_wise_premium_monthly',
       'spend_wise_premium_yearly',
     };
     final ProductDetailsResponse response = await _inAppPurchase
-        .queryProductDetails(_kIds);
+        .queryProductDetails(kIds);
 
     setState(() {
       _isLoading = false;

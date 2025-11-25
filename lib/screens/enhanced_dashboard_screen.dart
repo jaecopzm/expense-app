@@ -3,15 +3,20 @@ import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import '../providers/expense_provider.dart';
 import '../providers/income_provider.dart';
+import '../services/notification_service.dart';
+import '../services/template_service.dart';
 import '../widgets/enhanced_expense_card.dart';
 import '../widgets/income_card.dart';
 import '../widgets/enhanced_cards.dart';
 import '../widgets/animated_widgets.dart';
 import '../widgets/skeleton_loader.dart';
+import '../widgets/notification_panel.dart';
+import '../widgets/template_selector.dart';
 import '../theme/app_theme_enhanced.dart';
 
 import 'enhanced_all_expenses_screen.dart';
 import 'enhanced_all_incomes_screen.dart';
+import 'enhanced_add_expense_screen.dart';
 
 class EnhancedDashboardScreen extends StatefulWidget {
   const EnhancedDashboardScreen({super.key});
@@ -28,6 +33,8 @@ class _EnhancedDashboardScreenState extends State<EnhancedDashboardScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       Provider.of<ExpenseProvider>(context, listen: false).fetchExpenses();
       Provider.of<IncomeProvider>(context, listen: false).fetchIncomes();
+      Provider.of<NotificationService>(context, listen: false).loadNotifications();
+      Provider.of<TemplateService>(context, listen: false).loadTemplates();
     });
   }
 
@@ -39,7 +46,31 @@ class _EnhancedDashboardScreenState extends State<EnhancedDashboardScreen> {
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
-      builder: (context) => const NotificationBottomSheet(),
+      isScrollControlled: true,
+      builder: (context) => const NotificationPanel(),
+    );
+  }
+
+  void _showTemplates() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (context) => TemplateSelector(
+        onTemplateSelected: (template) {
+          Navigator.pop(context); // Close the bottom sheet
+          Future.delayed(const Duration(milliseconds: 100), () {
+            if (mounted) {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => EnhancedAddExpenseScreen(template: template),
+                ),
+              );
+            }
+          });
+        },
+      ),
     );
   }
 
@@ -47,6 +78,7 @@ class _EnhancedDashboardScreenState extends State<EnhancedDashboardScreen> {
   Widget build(BuildContext context) {
     final expenseProvider = Provider.of<ExpenseProvider>(context);
     final incomeProvider = Provider.of<IncomeProvider>(context);
+    final notificationService = Provider.of<NotificationService>(context);
     final now = DateTime.now();
     final monthName = DateFormat('MMMM').format(now);
     final netBalance = incomeProvider.totalIncome - expenseProvider.totalSpent;
@@ -63,69 +95,84 @@ class _EnhancedDashboardScreenState extends State<EnhancedDashboardScreen> {
           },
           child: CustomScrollView(
             slivers: [
-              // Simple App Bar with Large Logo
+              // Clean App Bar
               SliverAppBar(
                 floating: false,
                 pinned: true,
                 backgroundColor: AppThemeEnhanced.primaryLight,
-                elevation: 2,
-                toolbarHeight: 80,
+                elevation: 0,
+                toolbarHeight: 70,
                 flexibleSpace: Container(
                   decoration: BoxDecoration(
                     gradient: AppThemeEnhanced.primaryGradient,
                   ),
                   child: SafeArea(
                     child: Padding(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 12,
-                      ),
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                       child: Row(
                         children: [
-                          // Large Logo - No Text
-                          Hero(
-                            tag: 'app_logo',
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 16,
-                                vertical: 10,
-                              ),
-                              decoration: BoxDecoration(
-                                color: Colors.white,
-                                borderRadius: BorderRadius.circular(16),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: Colors.black.withOpacity(0.1),
-                                    blurRadius: 8,
-                                    offset: const Offset(0, 2),
-                                  ),
-                                ],
-                              ),
-                              child: Image.asset(
-                                'assets/images/wizebudge-logo.png',
-                                height: 45,
-                                width: 120,
-                                fit: BoxFit.contain,
+                          // Logo
+                          Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Image.asset(
+                              'assets/images/wizebudge-logo.png',
+                              height: 35,
+                              width: 100,
+                              fit: BoxFit.contain,
+                              errorBuilder: (_, __, ___) => const Icon(
+                                Icons.account_balance_wallet,
+                                size: 35,
+                                color: AppThemeEnhanced.primaryLight,
                               ),
                             ),
                           ),
                           const Spacer(),
-                          // Action Buttons
+                          // Quick Add Button
                           IconButton(
-                            icon: const Icon(
-                              Icons.notifications_outlined,
-                              color: Colors.white,
-                              size: 26,
+                            icon: Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                color: Colors.white24,
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: const Icon(Icons.flash_on, color: Colors.white, size: 20),
                             ),
-                            onPressed: _showNotifications,
+                            onPressed: _showTemplates,
                           ),
-                          IconButton(
-                            icon: const Icon(
-                              Icons.search,
-                              color: Colors.white,
-                              size: 26,
-                            ),
-                            onPressed: _showSearch,
+                          // Notification with Badge
+                          Stack(
+                            children: [
+                              IconButton(
+                                icon: const Icon(Icons.notifications_outlined, color: Colors.white, size: 24),
+                                onPressed: _showNotifications,
+                              ),
+                              if (notificationService.unreadCount > 0)
+                                Positioned(
+                                  right: 8,
+                                  top: 8,
+                                  child: Container(
+                                    padding: const EdgeInsets.all(4),
+                                    decoration: const BoxDecoration(
+                                      color: Colors.red,
+                                      shape: BoxShape.circle,
+                                    ),
+                                    constraints: const BoxConstraints(minWidth: 16, minHeight: 16),
+                                    child: Text(
+                                      '${notificationService.unreadCount > 9 ? '9+' : notificationService.unreadCount}',
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                      textAlign: TextAlign.center,
+                                    ),
+                                  ),
+                                ),
+                            ],
                           ),
                         ],
                       ),
@@ -256,6 +303,64 @@ class _EnhancedDashboardScreenState extends State<EnhancedDashboardScreen> {
                         : incomeProvider.incomes.length,
                   ),
                 ),
+
+              // Premium Features Section
+              SliverToBoxAdapter(
+                child: SlideInAnimation(
+                  delay: const Duration(milliseconds: 450),
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(
+                      AppThemeEnhanced.spaceLg,
+                      AppThemeEnhanced.spaceLg,
+                      AppThemeEnhanced.spaceLg,
+                      AppThemeEnhanced.spaceMd,
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Premium Features',
+                          style: Theme.of(context).textTheme.titleLarge,
+                        ),
+                        const SizedBox(height: 12),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: _buildPremiumFeatureCard(
+                                context,
+                                icon: Icons.camera_alt,
+                                title: 'Scan Receipt',
+                                color: Colors.blue,
+                                onTap: () => Navigator.pushNamed(context, '/receipt-scanner'),
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: _buildPremiumFeatureCard(
+                                context,
+                                icon: Icons.psychology,
+                                title: 'AI Insights',
+                                color: Colors.purple,
+                                onTap: () => Navigator.pushNamed(context, '/ai-insights'),
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: _buildPremiumFeatureCard(
+                                context,
+                                icon: Icons.account_balance_wallet,
+                                title: 'Budgets',
+                                color: Colors.green,
+                                onTap: () => Navigator.pushNamed(context, '/budget'),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
 
               // Recent Transactions Header
               SliverToBoxAdapter(
@@ -419,6 +524,42 @@ class _EnhancedDashboardScreenState extends State<EnhancedDashboardScreen> {
         listen: false,
       ).deleteIncome(id);
     }
+  }
+
+  Widget _buildPremiumFeatureCard(
+    BuildContext context, {
+    required IconData icon,
+    required String title,
+    required Color color,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: color.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: color.withOpacity(0.3)),
+        ),
+        child: Column(
+          children: [
+            Icon(icon, color: color, size: 28),
+            const SizedBox(height: 8),
+            Text(
+              title,
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: color,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }
 

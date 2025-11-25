@@ -1,13 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:device_info_plus/device_info_plus.dart';
 import '../services/secure_storage.dart';
 
-// DEVELOPMENT MODE: Premium features are enabled for all users
-// To re-enable premium restrictions, change isPremium getter and all canAccess methods
-// to return their original logic instead of hardcoded true values
-
 class PremiumProvider with ChangeNotifier {
-  bool _isPremium = true; // Set to true for development/testing
+  bool _isPremium = false;
   final SecureStorage _secureStorage = SecureStorage();
   String? _subscriptionType;
   DateTime? _expiryDate;
@@ -16,7 +11,7 @@ class PremiumProvider with ChangeNotifier {
     _loadPremiumStatus();
   }
 
-  bool get isPremium => true; // Always return true for development
+  bool get isPremium => _isPremium;
   String? get subscriptionType => _subscriptionType;
   DateTime? get expiryDate => _expiryDate;
 
@@ -26,7 +21,6 @@ class PremiumProvider with ChangeNotifier {
   }
 
   Future<void> processPurchase(String productId, String transactionId) async {
-    // Determine subscription duration based on product
     final duration = productId.contains('yearly')
         ? const Duration(days: 365)
         : const Duration(days: 30);
@@ -51,15 +45,16 @@ class PremiumProvider with ChangeNotifier {
     return _secureStorage.getDeviceId();
   }
 
-  // Premium feature checks - always return true for development
   Future<bool> canAccessFeature(String feature) async {
-    return true; // Always allow access during development
+    return _isPremium;
   }
 
-  bool canAccessAdvancedAnalytics() => true; // Always true for development
-  bool canAccessAIInsights() => true; // Always true for development
-  bool canExportData() => true; // Always true for development
-  bool canCustomizeTheme() => true; // Always true for development
-  bool canAccessFinancialGoals() => true; // Always true for development
-  bool canAccessSmartCategories() => true; // Always true for development
+  bool canAccessAdvancedAnalytics() => _isPremium;
+  bool canAccessAIInsights() => _isPremium;
+  bool canExportData() => _isPremium;
+  bool canCustomizeTheme() => _isPremium;
+  bool canAccessFinancialGoals() => _isPremium;
+  bool canAccessSmartCategories() => _isPremium;
+  bool canAccessReceiptScanning() => _isPremium;
+  bool canAccessBudgetTracking() => _isPremium;
 }

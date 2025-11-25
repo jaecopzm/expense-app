@@ -1,13 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:fl_chart/fl_chart.dart';
-import 'package:intl/intl.dart';
 import '../providers/expense_provider.dart';
 import '../providers/income_provider.dart';
 import '../theme/app_theme_enhanced.dart';
-import '../widgets/enhanced_cards.dart';
-import '../widgets/animated_widgets.dart';
-import '../widgets/enhanced_navigation.dart';
+import '../widgets/advanced_charts.dart';
 
 class EnhancedInsightsScreenNew extends StatefulWidget {
   const EnhancedInsightsScreenNew({super.key});
@@ -17,93 +13,78 @@ class EnhancedInsightsScreenNew extends StatefulWidget {
       _EnhancedInsightsScreenNewState();
 }
 
-class _EnhancedInsightsScreenNewState extends State<EnhancedInsightsScreenNew>
-    with SingleTickerProviderStateMixin {
-  late TabController _tabController;
-
+class _EnhancedInsightsScreenNewState extends State<EnhancedInsightsScreenNew> {
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       Provider.of<ExpenseProvider>(context, listen: false).fetchExpenses();
       Provider.of<IncomeProvider>(context, listen: false).fetchIncomes();
     });
   }
 
-  @override
-  void dispose() {
-    _tabController.dispose();
-    super.dispose();
-  }
-
-  Map<String, double> _getCategoryTotals(List items, String type) {
-    final Map<String, double> totals = {};
-    for (var item in items) {
-      totals[item.category] = (totals[item.category] ?? 0) + item.amount;
-    }
-    return totals;
-  }
-
-  Map<String, double> _getMonthlyTrend(List items, int months) {
-    final Map<String, double> trend = {};
-    final now = DateTime.now();
-
-    for (int i = months - 1; i >= 0; i--) {
-      final month = DateTime(now.year, now.month - i, 1);
-      final key = DateFormat('MMM').format(month);
-      trend[key] = 0.0;
-    }
-
-    for (var item in items) {
-      final monthKey = DateFormat('MMM').format(item.date);
-      if (trend.containsKey(monthKey)) {
-        trend[monthKey] = (trend[monthKey] ?? 0) + item.amount;
-      }
-    }
-
-    return trend;
+  double _calculateMonthTotal(List expenses, DateTime month) {
+    return expenses
+        .where((e) {
+          final date = DateTime.parse(e['date']);
+          return date.month == month.month && date.year == month.year;
+        })
+        .fold(0.0, (sum, e) => sum + e['amount']);
   }
 
   @override
   Widget build(BuildContext context) {
     final expenseProvider = Provider.of<ExpenseProvider>(context);
     final incomeProvider = Provider.of<IncomeProvider>(context);
+    
+    final now = DateTime.now();
+    final lastMonth = DateTime(now.year, now.month - 1);
+    final thisMonthTotal = _calculateMonthTotal(
+      expenseProvider.expenses.map((e) => {
+        'date': e.date.toIso8601String(),
+        'amount': e.amount,
+        'category': e.category,
+      }).toList(),
+      now,
+    );
+    final lastMonthTotal = _calculateMonthTotal(
+      expenseProvider.expenses.map((e) => {
+        'date': e.date.toIso8601String(),
+        'amount': e.amount,
+        'category': e.category,
+      }).toList(),
+      lastMonth,
+    );
 
-    final expenseCategoryTotals = _getCategoryTotals(
-      expenseProvider.expenses,
-      'expense',
-    );
-    final incomeCategoryTotals = _getCategoryTotals(
-      incomeProvider.incomes,
-      'income',
-    );
-    final netBalance = incomeProvider.totalIncome - expenseProvider.totalSpent;
+    final expenseData = expenseProvider.expenses.map((e) => {
+      'date': e.date.toIso8601String(),
+      'amount': e.amount,
+      'category': e.category,
+      'title': e.title,
+    }).toList();
 
     return Scaffold(
       body: SafeArea(
-        child: Column(
-          children: [
-            // Enhanced Header
-            SlideInAnimation(
-              delay: const Duration(milliseconds: 100),
+        child: CustomScrollView(
+          slivers: [
+            // Header
+            SliverToBoxAdapter(
               child: Padding(
-                padding: const EdgeInsets.all(AppThemeEnhanced.spaceLg),
+                padding: const EdgeInsets.all(20),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
                       'Insights 📊',
-                      style: Theme.of(context).textTheme.headlineMedium
-                          ?.copyWith(fontWeight: FontWeight.w800),
+                      style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
-                    const SizedBox(height: AppThemeEnhanced.spaceXs),
+                    const SizedBox(height: 8),
                     Text(
-                      'Analyze your financial health',
+                      'Analyze your spending patterns',
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: Theme.of(
-                          context,
-                        ).colorScheme.onSurface.withOpacity(0.6),
+                        color: Colors.grey[600],
                       ),
                     ),
                   ],
@@ -111,516 +92,292 @@ class _EnhancedInsightsScreenNewState extends State<EnhancedInsightsScreenNew>
               ),
             ),
 
-            // Enhanced Tab Bar
-            SlideInAnimation(
-              delay: const Duration(milliseconds: 200),
-              child: EnhancedTabBar(
-                controller: _tabController,
-                tabs: const ['Overview', 'Categories', 'Trends'],
-              ),
-            ),
-
-            const SizedBox(height: AppThemeEnhanced.spaceLg),
-
-            // Tab Content
-            Expanded(
-              child: TabBarView(
-                controller: _tabController,
-                children: [
-                  KeyedSubtree(
-                    key: const ValueKey('overview_tab'),
-                    child: _buildOverviewTab(
-                      expenseProvider,
-                      incomeProvider,
-                      netBalance,
+            // Summary Cards
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: _buildStatCard(
+                        context,
+                        'Income',
+                        '\$${incomeProvider.totalIncome.toStringAsFixed(0)}',
+                        Icons.arrow_upward,
+                        Colors.green,
+                      ),
                     ),
-                  ),
-                  KeyedSubtree(
-                    key: const ValueKey('categories_tab'),
-                    child: _buildCategoriesTab(
-                      expenseCategoryTotals,
-                      incomeCategoryTotals,
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: _buildStatCard(
+                        context,
+                        'Expenses',
+                        '\$${expenseProvider.totalSpent.toStringAsFixed(0)}',
+                        Icons.arrow_downward,
+                        Colors.red,
+                      ),
                     ),
-                  ),
-                  KeyedSubtree(
-                    key: const ValueKey('trends_tab'),
-                    child: _buildTrendsTab(expenseProvider, incomeProvider),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildOverviewTab(
-    ExpenseProvider expenseProvider,
-    IncomeProvider incomeProvider,
-    double netBalance,
-  ) {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.symmetric(horizontal: AppThemeEnhanced.spaceLg),
-      child: Column(
-        children: [
-          // Summary Cards
-          SlideInAnimation(
-            delay: const Duration(milliseconds: 300),
-            child: Row(
-              children: [
-                Expanded(
-                  child: EnhancedStatCard(
-                    title: 'Total Income',
-                    value: '\$${incomeProvider.totalIncome.toStringAsFixed(0)}',
-                    icon: Icons.trending_up,
-                    color: AppThemeEnhanced.success,
-                    subtitle: 'This month',
-                  ),
+                  ],
                 ),
-                const SizedBox(width: AppThemeEnhanced.spaceMd),
-                Expanded(
-                  child: EnhancedStatCard(
-                    title: 'Total Expenses',
-                    value: '\$${expenseProvider.totalSpent.toStringAsFixed(0)}',
-                    icon: Icons.trending_down,
-                    color: AppThemeEnhanced.error,
-                    subtitle: 'This month',
-                  ),
-                ),
-              ],
-            ),
-          ),
-
-          const SizedBox(height: AppThemeEnhanced.spaceLg),
-
-          // Net Balance Card
-          SlideInAnimation(
-            delay: const Duration(milliseconds: 400),
-            child: Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(AppThemeEnhanced.spaceLg),
-              decoration: BoxDecoration(
-                gradient: netBalance >= 0
-                    ? AppThemeEnhanced.successGradient
-                    : AppThemeEnhanced.errorGradient,
-                borderRadius: BorderRadius.circular(AppThemeEnhanced.radiusXl),
-                boxShadow: AppThemeEnhanced.shadowMd,
               ),
-              child: Column(
-                children: [
-                  Text(
-                    'Net Balance',
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      color: Colors.white.withOpacity(0.9),
+            ),
+
+            const SliverToBoxAdapter(child: SizedBox(height: 20)),
+
+            // Net Balance Card
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: Container(
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [
+                        AppThemeEnhanced.primaryLight,
+                        AppThemeEnhanced.secondaryLight,
+                      ],
                     ),
+                    borderRadius: BorderRadius.circular(16),
                   ),
-                  const SizedBox(height: AppThemeEnhanced.spaceSm),
-                  AnimatedCounter(
-                    value: netBalance,
-                    prefix: '\$',
-                    textStyle: Theme.of(context).textTheme.headlineLarge
-                        ?.copyWith(
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Net Balance',
+                            style: TextStyle(
+                              color: Colors.white70,
+                              fontSize: 14,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            '\$${(incomeProvider.totalIncome - expenseProvider.totalSpent).toStringAsFixed(2)}',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 28,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
+                      ),
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.white24,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: const Icon(
+                          Icons.account_balance_wallet,
                           color: Colors.white,
-                          fontWeight: FontWeight.w800,
+                          size: 32,
                         ),
+                      ),
+                    ],
                   ),
-                  const SizedBox(height: AppThemeEnhanced.spaceSm),
-                  Text(
-                    netBalance >= 0
-                        ? 'You\'re doing great! 🎉'
-                        : 'Time to save more 💪',
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: Colors.white.withOpacity(0.9),
-                    ),
-                  ),
-                ],
+                ),
               ),
             ),
+
+            const SliverToBoxAdapter(child: SizedBox(height: 24)),
+
+            // Charts Section
+            if (expenseData.isNotEmpty) ...[
+              // Month Comparison
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  child: ComparisonBarChart(
+                    thisMonth: thisMonthTotal,
+                    lastMonth: lastMonthTotal,
+                  ),
+                ),
+              ),
+
+              const SliverToBoxAdapter(child: SizedBox(height: 16)),
+
+              // Category Breakdown
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  child: CategoryPieChart(expenses: expenseData),
+                ),
+              ),
+
+              const SliverToBoxAdapter(child: SizedBox(height: 16)),
+
+              // Spending Trend
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  child: SpendingTrendChart(expenses: expenseData),
+                ),
+              ),
+
+              const SliverToBoxAdapter(child: SizedBox(height: 24)),
+
+              // Top Categories
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  child: _buildTopCategories(expenseData),
+                ),
+              ),
+            ] else
+              SliverFillRemaining(
+                child: Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        Icons.insights_outlined,
+                        size: 64,
+                        color: Colors.grey[400],
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        'No data to analyze yet',
+                        style: TextStyle(
+                          fontSize: 16,
+                          color: Colors.grey[600],
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Add some expenses to see insights',
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: Colors.grey[500],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+
+            const SliverToBoxAdapter(child: SizedBox(height: 24)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildStatCard(
+    BuildContext context,
+    String title,
+    String value,
+    IconData icon,
+    Color color,
+  ) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: color.withValues(alpha: 0.3)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(icon, color: color, size: 20),
+              const SizedBox(width: 8),
+              Text(
+                title,
+                style: TextStyle(
+                  color: Colors.grey[700],
+                  fontSize: 14,
+                ),
+              ),
+            ],
           ),
-
-          const SizedBox(height: AppThemeEnhanced.spaceLg),
-
-          // Quick Stats
-          SlideInAnimation(
-            delay: const Duration(milliseconds: 500),
-            child: Row(
-              children: [
-                Expanded(
-                  child: EnhancedStatCard(
-                    title: 'Transactions',
-                    value:
-                        '${expenseProvider.expenses.length + incomeProvider.incomes.length}',
-                    icon: Icons.receipt_long,
-                    color: AppThemeEnhanced.info,
-                    subtitle: 'Total',
-                  ),
-                ),
-                const SizedBox(width: AppThemeEnhanced.spaceMd),
-                Expanded(
-                  child: EnhancedStatCard(
-                    title: 'Avg. Expense',
-                    value: expenseProvider.expenses.isNotEmpty
-                        ? '\$${(expenseProvider.totalSpent / expenseProvider.expenses.length).toStringAsFixed(0)}'
-                        : '\$0',
-                    icon: Icons.analytics,
-                    color: AppThemeEnhanced.warning,
-                    subtitle: 'Per transaction',
-                  ),
-                ),
-              ],
+          const SizedBox(height: 8),
+          Text(
+            value,
+            style: TextStyle(
+              color: color,
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
             ),
           ),
-
-          const SizedBox(height: AppThemeEnhanced.space2xl),
         ],
       ),
     );
   }
 
-  Widget _buildCategoriesTab(
-    Map<String, double> expenseTotals,
-    Map<String, double> incomeTotals,
-  ) {
-    if (expenseTotals.isEmpty && incomeTotals.isEmpty) {
-      return const EnhancedEmptyState(
-        title: 'No data available',
-        subtitle: 'Add some transactions to see category insights',
-        icon: Icons.pie_chart_outline,
-      );
+  Widget _buildTopCategories(List<Map<String, dynamic>> expenses) {
+    final Map<String, double> categoryTotals = {};
+    for (var expense in expenses) {
+      final category = expense['category'];
+      categoryTotals[category] = (categoryTotals[category] ?? 0) + expense['amount'];
     }
 
-    return SingleChildScrollView(
-      padding: const EdgeInsets.symmetric(horizontal: AppThemeEnhanced.spaceLg),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Expense Categories
-          if (expenseTotals.isNotEmpty) ...[
-            SlideInAnimation(
-              delay: const Duration(milliseconds: 300),
-              child: Text(
-                'Expense Categories',
-                style: Theme.of(
-                  context,
-                ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700),
-              ),
+    final sortedCategories = categoryTotals.entries.toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
+
+    final topCategories = sortedCategories.take(5).toList();
+
+    if (topCategories.isEmpty) return const SizedBox.shrink();
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Top Spending Categories',
+              style: Theme.of(context).textTheme.titleLarge,
             ),
-            const SizedBox(height: AppThemeEnhanced.spaceMd),
-            ...expenseTotals.entries.map((entry) {
-              final percentage =
-                  (entry.value / expenseTotals.values.reduce((a, b) => a + b)) *
-                  100;
-              return SlideInAnimation(
-                delay: Duration(
-                  milliseconds:
-                      400 +
-                      (expenseTotals.keys.toList().indexOf(entry.key) * 100),
-                ),
-                child: Padding(
-                  padding: const EdgeInsets.only(
-                    bottom: AppThemeEnhanced.spaceSm,
-                  ),
-                  child: EnhancedCategoryCard(
-                    category: entry.key,
-                    amount: entry.value,
-                    percentage: percentage,
-                    icon: _getCategoryIcon(entry.key),
-                    onTap: () {
-                      // Navigate to category details
-                    },
-                  ),
-                ),
-              );
-            }).toList(),
-          ],
-
-          // Income Categories
-          if (incomeTotals.isNotEmpty) ...[
-            const SizedBox(height: AppThemeEnhanced.spaceLg),
-            SlideInAnimation(
-              delay: const Duration(milliseconds: 600),
-              child: Text(
-                'Income Categories',
-                style: Theme.of(
-                  context,
-                ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700),
-              ),
-            ),
-            const SizedBox(height: AppThemeEnhanced.spaceMd),
-            ...incomeTotals.entries.map((entry) {
-              final percentage =
-                  (entry.value / incomeTotals.values.reduce((a, b) => a + b)) *
-                  100;
-              return SlideInAnimation(
-                delay: Duration(
-                  milliseconds:
-                      700 +
-                      (incomeTotals.keys.toList().indexOf(entry.key) * 100),
-                ),
-                child: Padding(
-                  padding: const EdgeInsets.only(
-                    bottom: AppThemeEnhanced.spaceSm,
-                  ),
-                  child: EnhancedCategoryCard(
-                    category: entry.key,
-                    amount: entry.value,
-                    percentage: percentage,
-                    icon: _getIncomeCategoryIcon(entry.key),
-                    onTap: () {
-                      // Navigate to category details
-                    },
-                  ),
-                ),
-              );
-            }).toList(),
-          ],
-
-          const SizedBox(height: AppThemeEnhanced.space2xl),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildTrendsTab(
-    ExpenseProvider expenseProvider,
-    IncomeProvider incomeProvider,
-  ) {
-    final expenseTrend = _getMonthlyTrend(expenseProvider.expenses, 6);
-    final incomeTrend = _getMonthlyTrend(incomeProvider.incomes, 6);
-
-    if (expenseTrend.values.every((v) => v == 0) &&
-        incomeTrend.values.every((v) => v == 0)) {
-      return const EnhancedEmptyState(
-        title: 'No trend data',
-        subtitle: 'Add transactions over multiple months to see trends',
-        icon: Icons.show_chart,
-      );
-    }
-
-    return SingleChildScrollView(
-      padding: const EdgeInsets.symmetric(horizontal: AppThemeEnhanced.spaceLg),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SlideInAnimation(
-            delay: const Duration(milliseconds: 300),
-            child: Text(
-              'Monthly Trends',
-              style: Theme.of(
-                context,
-              ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700),
-            ),
-          ),
-          const SizedBox(height: AppThemeEnhanced.spaceLg),
-
-          // Chart Container
-          SlideInAnimation(
-            delay: const Duration(milliseconds: 400),
-            child: Container(
-              height: 300,
-              padding: const EdgeInsets.all(AppThemeEnhanced.spaceLg),
-              decoration: BoxDecoration(
-                color: Theme.of(context).cardColor,
-                borderRadius: BorderRadius.circular(AppThemeEnhanced.radiusXl),
-                boxShadow: AppThemeEnhanced.shadowSm,
-              ),
-              child: LineChart(
-                LineChartData(
-                  gridData: FlGridData(
-                    show: true,
-                    drawVerticalLine: false,
-                    horizontalInterval: 500,
-                    getDrawingHorizontalLine: (value) {
-                      return FlLine(
-                        color: Theme.of(context).dividerColor.withOpacity(0.2),
-                        strokeWidth: 1,
-                      );
-                    },
-                  ),
-                  titlesData: FlTitlesData(
-                    leftTitles: AxisTitles(
-                      sideTitles: SideTitles(
-                        showTitles: true,
-                        reservedSize: 60,
-                        getTitlesWidget: (value, meta) {
-                          return Text(
-                            '\$${value.toInt()}',
-                            style: Theme.of(context).textTheme.bodySmall,
-                          );
-                        },
-                      ),
-                    ),
-                    bottomTitles: AxisTitles(
-                      sideTitles: SideTitles(
-                        showTitles: true,
-                        getTitlesWidget: (value, meta) {
-                          final months = expenseTrend.keys.toList();
-                          if (value.toInt() < months.length) {
-                            return Text(
-                              months[value.toInt()],
-                              style: Theme.of(context).textTheme.bodySmall,
-                            );
-                          }
-                          return const Text('');
-                        },
-                      ),
-                    ),
-                    rightTitles: const AxisTitles(
-                      sideTitles: SideTitles(showTitles: false),
-                    ),
-                    topTitles: const AxisTitles(
-                      sideTitles: SideTitles(showTitles: false),
-                    ),
-                  ),
-                  borderData: FlBorderData(show: false),
-                  lineBarsData: [
-                    // Expenses Line
-                    LineChartBarData(
-                      spots: expenseTrend.values.toList().asMap().entries.map((
-                        e,
-                      ) {
-                        return FlSpot(e.key.toDouble(), e.value);
-                      }).toList(),
-                      isCurved: true,
-                      gradient: LinearGradient(
-                        colors: [
-                          AppThemeEnhanced.error,
-                          AppThemeEnhanced.error.withOpacity(0.3),
-                        ],
-                      ),
-                      barWidth: 3,
-                      isStrokeCapRound: true,
-                      dotData: const FlDotData(show: true),
-                      belowBarData: BarAreaData(
-                        show: true,
-                        gradient: LinearGradient(
-                          colors: [
-                            AppThemeEnhanced.error.withOpacity(0.3),
-                            AppThemeEnhanced.error.withOpacity(0.1),
-                          ],
-                          begin: Alignment.topCenter,
-                          end: Alignment.bottomCenter,
+            const SizedBox(height: 16),
+            ...topCategories.map((entry) {
+              final percentage = (entry.value / categoryTotals.values.reduce((a, b) => a + b) * 100);
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          entry.key,
+                          style: const TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w500,
+                          ),
                         ),
-                      ),
-                    ),
-                    // Income Line
-                    LineChartBarData(
-                      spots: incomeTrend.values.toList().asMap().entries.map((
-                        e,
-                      ) {
-                        return FlSpot(e.key.toDouble(), e.value);
-                      }).toList(),
-                      isCurved: true,
-                      gradient: LinearGradient(
-                        colors: [
-                          AppThemeEnhanced.success,
-                          AppThemeEnhanced.success.withOpacity(0.3),
-                        ],
-                      ),
-                      barWidth: 3,
-                      isStrokeCapRound: true,
-                      dotData: const FlDotData(show: true),
-                      belowBarData: BarAreaData(
-                        show: true,
-                        gradient: LinearGradient(
-                          colors: [
-                            AppThemeEnhanced.success.withOpacity(0.3),
-                            AppThemeEnhanced.success.withOpacity(0.1),
-                          ],
-                          begin: Alignment.topCenter,
-                          end: Alignment.bottomCenter,
+                        Text(
+                          '\$${entry.value.toStringAsFixed(2)}',
+                          style: const TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
+                      ],
+                    ),
+                    const SizedBox(height: 6),
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(4),
+                      child: LinearProgressIndicator(
+                        value: percentage / 100,
+                        backgroundColor: Colors.grey[200],
+                        valueColor: AlwaysStoppedAnimation(
+                          AppThemeEnhanced.primaryLight,
+                        ),
+                        minHeight: 8,
                       ),
                     ),
                   ],
                 ),
-              ),
-            ),
-          ),
-
-          const SizedBox(height: AppThemeEnhanced.spaceLg),
-
-          // Legend
-          SlideInAnimation(
-            delay: const Duration(milliseconds: 500),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                _buildLegendItem('Expenses', AppThemeEnhanced.error),
-                const SizedBox(width: AppThemeEnhanced.spaceLg),
-                _buildLegendItem('Income', AppThemeEnhanced.success),
-              ],
-            ),
-          ),
-
-          const SizedBox(height: AppThemeEnhanced.space2xl),
-        ],
+              );
+            }),
+          ],
+        ),
       ),
     );
-  }
-
-  Widget _buildLegendItem(String label, Color color) {
-    return Row(
-      children: [
-        Container(
-          width: 16,
-          height: 16,
-          decoration: BoxDecoration(
-            color: color,
-            borderRadius: BorderRadius.circular(AppThemeEnhanced.radiusXs),
-          ),
-        ),
-        const SizedBox(width: AppThemeEnhanced.spaceSm),
-        Text(
-          label,
-          style: Theme.of(
-            context,
-          ).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w500),
-        ),
-      ],
-    );
-  }
-
-  IconData _getCategoryIcon(String category) {
-    switch (category.toLowerCase()) {
-      case 'food':
-        return Icons.restaurant_rounded;
-      case 'transport':
-        return Icons.directions_car_rounded;
-      case 'shopping':
-        return Icons.shopping_bag_rounded;
-      case 'entertainment':
-        return Icons.movie_rounded;
-      case 'bills':
-        return Icons.receipt_long_rounded;
-      case 'health':
-        return Icons.medical_services_rounded;
-      case 'education':
-        return Icons.school_rounded;
-      default:
-        return Icons.attach_money_rounded;
-    }
-  }
-
-  IconData _getIncomeCategoryIcon(String category) {
-    switch (category.toLowerCase()) {
-      case 'salary':
-        return Icons.work_rounded;
-      case 'freelance':
-        return Icons.laptop_rounded;
-      case 'investment':
-        return Icons.trending_up_rounded;
-      case 'business':
-        return Icons.business_rounded;
-      case 'gift':
-        return Icons.card_giftcard_rounded;
-      case 'bonus':
-        return Icons.star_rounded;
-      case 'rental':
-        return Icons.home_rounded;
-      default:
-        return Icons.attach_money_rounded;
-    }
   }
 }

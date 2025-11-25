@@ -505,7 +505,7 @@ class _EnhancedAllIncomesScreenState extends State<EnhancedAllIncomesScreen>
                       onDelete: () => _deleteIncome(income.id!),
                     ),
                   );
-                }).toList(),
+                }),
               ],
             ),
           );
@@ -606,7 +606,7 @@ class _EnhancedAllIncomesScreenState extends State<EnhancedAllIncomesScreen>
                     ),
                   ),
                 );
-              }).toList(),
+              }),
               const SizedBox(height: AppThemeEnhanced.spaceLg),
             ],
           ),

@@ -5,6 +5,7 @@ class Expense {
   final String category;
   final DateTime date;
   final String? note;
+  final String? receiptImage;
   final DateTime? createdAt;
 
   Expense({
@@ -14,6 +15,7 @@ class Expense {
     required this.category,
     required this.date,
     this.note,
+    this.receiptImage,
     DateTime? createdAt,
   }) : createdAt = createdAt ?? DateTime.now();
 
@@ -25,6 +27,7 @@ class Expense {
       'category': category,
       'date': date.toIso8601String(),
       'note': note,
+      'receiptImage': receiptImage,
       'createdAt': createdAt?.toIso8601String(),
     };
   }
@@ -37,6 +40,7 @@ class Expense {
       category: map['category'],
       date: DateTime.parse(map['date']),
       note: map['note'],
+      receiptImage: map['receiptImage'],
       createdAt: map['createdAt'] != null ? DateTime.parse(map['createdAt']) : null,
     );
   }
@@ -48,6 +52,7 @@ class Expense {
     String? category,
     DateTime? date,
     String? note,
+    String? receiptImage,
     DateTime? createdAt,
   }) {
     return Expense(
@@ -57,6 +62,7 @@ class Expense {
       category: category ?? this.category,
       date: date ?? this.date,
       note: note ?? this.note,
+      receiptImage: receiptImage ?? this.receiptImage,
       createdAt: createdAt ?? this.createdAt,
     );
   }

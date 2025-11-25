@@ -471,7 +471,7 @@ class _EnhancedAllExpensesScreenState extends State<EnhancedAllExpensesScreen>
                       onDelete: () => _deleteExpense(expense.id!),
                     ),
                   );
-                }).toList(),
+                }),
               ],
             ),
           );
@@ -572,7 +572,7 @@ class _EnhancedAllExpensesScreenState extends State<EnhancedAllExpensesScreen>
                     ),
                   ),
                 );
-              }).toList(),
+              }),
               const SizedBox(height: AppThemeEnhanced.spaceLg),
             ],
           ),

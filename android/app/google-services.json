@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "701898587584",
+    "project_id": "wize-budge",
+    "storage_bucket": "wize-budge.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:701898587584:android:335add83c8df0835e6dc25",
+        "android_client_info": {
+          "package_name": "com.example.spend_wise"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDG_5UBYAOHp3QUZESRxvPO_7rE8y4pSM4"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

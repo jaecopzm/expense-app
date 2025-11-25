@@ -110,18 +110,14 @@ class _EnhancedTextFieldState extends State<EnhancedTextField>
                             widget.prefixIcon,
                             color: _isFocused
                                 ? AppThemeEnhanced.primaryLight
-                                : Theme.of(
-                                    context,
-                                  ).iconTheme.color?.withOpacity(0.6),
+                                : Theme.of(context).iconTheme.color?.withValues(alpha: 0.6),
                           )
                         : null,
                     suffixIcon: widget.suffixIcon,
                     filled: true,
                     fillColor: _isFocused
-                        ? AppThemeEnhanced.primaryLight.withOpacity(0.05)
-                        : Theme.of(
-                            context,
-                          ).colorScheme.surfaceVariant.withOpacity(0.5),
+                        ? AppThemeEnhanced.primaryLight.withValues(alpha: 0.05)
+                        : Theme.of(context).colorScheme.surface,
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(
                         AppThemeEnhanced.radiusLg,
@@ -133,7 +129,7 @@ class _EnhancedTextFieldState extends State<EnhancedTextField>
                         AppThemeEnhanced.radiusLg,
                       ),
                       borderSide: BorderSide(
-                        color: Theme.of(context).dividerColor.withOpacity(0.2),
+                        color: Theme.of(context).dividerColor.withValues(alpha: 0.2),
                       ),
                     ),
                     focusedBorder: OutlineInputBorder(
@@ -210,7 +206,7 @@ class EnhancedCategorySelector extends StatelessWidget {
                       ? null
                       : Theme.of(
                           context,
-                        ).colorScheme.surfaceVariant.withOpacity(0.5),
+                        ).colorScheme.surfaceContainerHighest.withOpacity(0.5),
                   borderRadius: BorderRadius.circular(
                     AppThemeEnhanced.radiusLg,
                   ),
@@ -299,7 +295,7 @@ class EnhancedQuickAmountSelector extends StatelessWidget {
                       ? AppThemeEnhanced.primaryLight
                       : Theme.of(
                           context,
-                        ).colorScheme.surfaceVariant.withOpacity(0.5),
+                        ).colorScheme.surfaceContainerHighest.withOpacity(0.5),
                   borderRadius: BorderRadius.circular(
                     AppThemeEnhanced.radiusFull,
                   ),
@@ -393,7 +389,7 @@ class _EnhancedSearchBarState extends State<EnhancedSearchBar>
                     ? AppThemeEnhanced.primaryLight.withOpacity(0.05)
                     : Theme.of(
                         context,
-                      ).colorScheme.surfaceVariant.withOpacity(0.5),
+                      ).colorScheme.surfaceContainerHighest.withOpacity(0.5),
                 borderRadius: BorderRadius.circular(
                   AppThemeEnhanced.radiusFull,
                 ),

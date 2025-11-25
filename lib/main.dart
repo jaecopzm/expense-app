@@ -8,6 +8,8 @@ import 'providers/recurring_transaction_provider.dart';
 import 'providers/premium_provider.dart';
 import 'providers/financial_goals_provider.dart';
 import 'providers/auth_provider.dart';
+import 'services/notification_service.dart';
+import 'services/template_service.dart';
 import 'utils/db_helper.dart';
 import 'providers/theme_provider.dart';
 import 'theme/app_theme_enhanced.dart';
@@ -17,8 +19,10 @@ import 'screens/enhanced_add_income_screen.dart';
 import 'screens/enhanced_insights_screen_new.dart';
 import 'screens/enhanced_settings_screen.dart';
 import 'screens/enhanced_financial_goals_screen.dart';
-import 'screens/auth/auth_wrapper.dart';
 import 'screens/splash_screen.dart';
+import 'screens/receipt_scanner_screen.dart';
+import 'screens/ai_insights_screen.dart';
+import 'screens/budget_screen.dart';
 
 import 'widgets/enhanced_navigation.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -285,6 +289,8 @@ class SpendWiseApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => PremiumProvider()),
         ChangeNotifierProvider(create: (_) => FinancialGoalsProvider()),
         ChangeNotifierProvider(create: (_) => AuthProvider()),
+        ChangeNotifierProvider(create: (_) => NotificationService()),
+        ChangeNotifierProvider(create: (_) => TemplateService()),
       ],
       child: Consumer<ThemeProvider>(
         builder: (context, themeProvider, _) {
@@ -297,7 +303,12 @@ class SpendWiseApp extends StatelessWidget {
                 ? ThemeMode.dark
                 : ThemeMode.light,
             home: const SplashScreen(),
-            routes: {'/main': (context) => const BottomNavWrapper()},
+            routes: {
+              '/main': (context) => const BottomNavWrapper(),
+              '/receipt-scanner': (context) => const ReceiptScannerScreen(),
+              '/ai-insights': (context) => const AIInsightsScreen(),
+              '/budget': (context) => const BudgetScreen(),
+            },
           );
         },
       ),

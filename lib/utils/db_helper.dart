@@ -118,6 +118,42 @@ class DBHelper {
         await db.execute('PRAGMA user_version = $currentVersion');
       }
 
+      // Migrate to v5: add receiptImage column to expenses
+      if (currentVersion < 5) {
+        debugPrint('Applying migration to v5');
+        final hasReceiptImage = await columnExists('expenses', 'receiptImage');
+        if (!hasReceiptImage) {
+          try {
+            await db.execute("ALTER TABLE expenses ADD COLUMN receiptImage TEXT");
+          } catch (e) {
+            debugPrint('Could not add column receiptImage: $e');
+          }
+        }
+        currentVersion = 5;
+        await db.execute('PRAGMA user_version = $currentVersion');
+      }
+
+      // Migrate to v6: add budgets table
+      if (currentVersion < 6) {
+        debugPrint('Applying migration to v6');
+        try {
+          await db.execute('''
+            CREATE TABLE IF NOT EXISTS budgets(
+              id INTEGER PRIMARY KEY AUTOINCREMENT,
+              category TEXT NOT NULL,
+              amount REAL NOT NULL,
+              period TEXT NOT NULL,
+              created_at TEXT NOT NULL,
+              UNIQUE(category, period)
+            )
+          ''');
+        } catch (e) {
+          debugPrint('Could not create budgets table: $e');
+        }
+        currentVersion = 6;
+        await db.execute('PRAGMA user_version = $currentVersion');
+      }
+
       debugPrint(
         'DB diagnostics/migrations complete. user_version=$currentVersion',
       );
@@ -147,7 +183,7 @@ class DBHelper {
 
       return await openDatabase(
         path,
-        version: 4,
+        version: 6,
         onCreate: (db, version) async {
           debugPrint('Creating database tables...');
           await db.execute('''
@@ -158,6 +194,7 @@ class DBHelper {
               category TEXT NOT NULL,
               date TEXT NOT NULL,
               note TEXT,
+              receiptImage TEXT,
               createdAt TEXT
             )
           ''');
@@ -188,47 +225,29 @@ class DBHelper {
               createdAt TEXT
             )
           ''');
+          await db.execute('''
+            CREATE TABLE IF NOT EXISTS expense_templates(
+              id INTEGER PRIMARY KEY AUTOINCREMENT,
+              title TEXT NOT NULL,
+              amount REAL NOT NULL,
+              category TEXT NOT NULL,
+              notes TEXT
+            )
+          ''');
+          await db.execute('''
+            CREATE TABLE IF NOT EXISTS budgets(
+              id INTEGER PRIMARY KEY AUTOINCREMENT,
+              category TEXT NOT NULL,
+              amount REAL NOT NULL,
+              period TEXT NOT NULL,
+              created_at TEXT NOT NULL,
+              UNIQUE(category, period)
+            )
+          ''');
         },
         onUpgrade: (db, oldVersion, newVersion) async {
           debugPrint('Upgrading database from v$oldVersion to v$newVersion');
-          if (oldVersion < 2) {
-            // Add new columns for version 2
-            await db.execute('ALTER TABLE expenses ADD COLUMN note TEXT');
-            await db.execute('ALTER TABLE expenses ADD COLUMN createdAt TEXT');
-          }
-          if (oldVersion < 3) {
-            // Add incomes table for version 3
-            await db.execute('''
-              CREATE TABLE IF NOT EXISTS incomes(
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                title TEXT NOT NULL,
-                amount REAL NOT NULL,
-                category TEXT NOT NULL,
-                date TEXT NOT NULL,
-                note TEXT,
-                createdAt TEXT
-              )
-            ''');
-          }
-          if (oldVersion < 4) {
-            // Add recurring_transactions table for version 4
-            await db.execute('''
-              CREATE TABLE IF NOT EXISTS recurring_transactions(
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                title TEXT NOT NULL,
-                amount REAL NOT NULL,
-                category TEXT NOT NULL,
-                type TEXT NOT NULL,
-                recurrence TEXT NOT NULL,
-                startDate TEXT NOT NULL,
-                endDate TEXT,
-                note TEXT,
-                isActive INTEGER DEFAULT 1,
-                lastProcessed TEXT,
-                createdAt TEXT
-              )
-            ''');
-          }
+          await _runDiagnosticsAndMigrations(db);
         },
         onOpen: (db) async {
           // Ensure tables exist (useful for existing DBs where migrations may have been missed)
@@ -268,6 +287,15 @@ class DBHelper {
               isActive INTEGER DEFAULT 1,
               lastProcessed TEXT,
               createdAt TEXT
+            )
+          ''');
+          await db.execute('''
+            CREATE TABLE IF NOT EXISTS expense_templates(
+              id INTEGER PRIMARY KEY AUTOINCREMENT,
+              title TEXT NOT NULL,
+              amount REAL NOT NULL,
+              category TEXT NOT NULL,
+              notes TEXT
             )
           ''');
 

@@ -173,7 +173,7 @@ class AuthService {
 
   // Hash PIN for secure storage
   String _hashPin(String pin) {
-    final bytes = utf8.encode(pin + 'wizebudge_salt'); // Add app-specific salt
+    final bytes = utf8.encode('${pin}wizebudge_salt'); // Add app-specific salt
     final digest = sha256.convert(bytes);
     return digest.toString();
   }

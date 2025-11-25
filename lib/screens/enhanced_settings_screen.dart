@@ -3,7 +3,6 @@ import 'package:provider/provider.dart';
 import '../providers/theme_provider.dart';
 import '../providers/expense_provider.dart';
 import '../providers/income_provider.dart';
-import '../providers/auth_provider.dart';
 import '../theme/app_theme_enhanced.dart';
 
 import '../widgets/animated_widgets.dart';
@@ -169,6 +168,68 @@ class EnhancedSettingsScreen extends StatelessWidget {
                             ),
                           ],
                         ),
+                      ),
+                    ),
+
+                    const SizedBox(height: AppThemeEnhanced.spaceLg),
+
+                    // Premium Features Section
+                    SlideInAnimation(
+                      delay: const Duration(milliseconds: 300),
+                      child: Text(
+                        'Premium Features',
+                        style: Theme.of(context).textTheme.titleMedium
+                            ?.copyWith(
+                              fontWeight: FontWeight.w700,
+                              color: Theme.of(
+                                context,
+                              ).colorScheme.onSurface.withOpacity(0.8),
+                            ),
+                      ),
+                    ),
+
+                    const SizedBox(height: AppThemeEnhanced.spaceMd),
+
+                    SlideInAnimation(
+                      delay: const Duration(milliseconds: 350),
+                      child: _buildSettingsCard(
+                        context,
+                        icon: Icons.camera_alt,
+                        iconColor: Colors.blue,
+                        title: 'Receipt Scanning',
+                        subtitle: 'AI-powered OCR for receipts',
+                        trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+                        onTap: () => Navigator.pushNamed(context, '/receipt-scanner'),
+                      ),
+                    ),
+
+                    const SizedBox(height: AppThemeEnhanced.spaceSm),
+
+                    SlideInAnimation(
+                      delay: const Duration(milliseconds: 375),
+                      child: _buildSettingsCard(
+                        context,
+                        icon: Icons.psychology,
+                        iconColor: Colors.purple,
+                        title: 'AI Insights',
+                        subtitle: 'Smart spending analysis',
+                        trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+                        onTap: () => Navigator.pushNamed(context, '/ai-insights'),
+                      ),
+                    ),
+
+                    const SizedBox(height: AppThemeEnhanced.spaceSm),
+
+                    SlideInAnimation(
+                      delay: const Duration(milliseconds: 400),
+                      child: _buildSettingsCard(
+                        context,
+                        icon: Icons.account_balance_wallet,
+                        iconColor: Colors.green,
+                        title: 'Budget Tracking',
+                        subtitle: 'Category budgets & alerts',
+                        trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+                        onTap: () => Navigator.pushNamed(context, '/budget'),
                       ),
                     ),
 

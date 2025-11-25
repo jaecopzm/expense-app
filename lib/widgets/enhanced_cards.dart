@@ -419,55 +419,57 @@ class EnhancedEmptyState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SlideInAnimation(
-      child: Center(
-        child: Padding(
-          padding: const EdgeInsets.all(AppThemeEnhanced.space2xl),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(AppThemeEnhanced.space2xl),
-                decoration: BoxDecoration(
-                  color: Theme.of(
-                    context,
-                  ).colorScheme.primaryContainer.withOpacity(0.3),
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(
-                  icon,
-                  size: 80,
-                  color: Theme.of(context).colorScheme.primary.withOpacity(0.5),
-                ),
+    return Center(
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.primaryContainer.withValues(alpha: 0.3),
+                shape: BoxShape.circle,
               ),
-              const SizedBox(height: AppThemeEnhanced.spaceLg),
-              Text(
-                title,
-                style: Theme.of(
-                  context,
-                ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w600),
-                textAlign: TextAlign.center,
+              child: Icon(
+                icon,
+                size: 64,
+                color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.5),
               ),
-              const SizedBox(height: AppThemeEnhanced.spaceSm),
-              Text(
-                subtitle,
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: Theme.of(
-                    context,
-                  ).colorScheme.onSurface.withOpacity(0.6),
-                ),
-                textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 24),
+            Text(
+              title,
+              style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                fontWeight: FontWeight.w600,
               ),
-              if (buttonText != null && onButtonPressed != null) ...[
-                const SizedBox(height: AppThemeEnhanced.spaceLg),
-                ElevatedButton(
-                  onPressed: onButtonPressed,
-                  style: AppThemeEnhanced.primaryButtonStyle(context),
-                  child: Text(buttonText!),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 12),
+            Text(
+              subtitle,
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
+              ),
+              textAlign: TextAlign.center,
+            ),
+            if (buttonText != null && onButtonPressed != null) ...[
+              const SizedBox(height: 24),
+              ElevatedButton(
+                onPressed: onButtonPressed,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Theme.of(context).colorScheme.primary,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
                 ),
-              ],
+                child: Text(buttonText!),
+              ),
             ],
-          ),
+          ],
         ),
       ),
     );

@@ -53,7 +53,7 @@ class FinancialGoal {
 }
 
 class FinancialGoalsProvider with ChangeNotifier {
-  List<FinancialGoal> _goals = [];
+  final List<FinancialGoal> _goals = [];
 
   List<FinancialGoal> get goals => List.unmodifiable(_goals);
 

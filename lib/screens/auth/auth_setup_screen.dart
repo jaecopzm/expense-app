@@ -404,7 +404,7 @@ class _AuthSetupScreenState extends State<AuthSetupScreen> {
                                 onChanged: (value) {
                                   setState(() => _biometricEnabled = value);
                                 },
-                                activeColor: Colors.white,
+                                activeThumbColor: Colors.white,
                                 activeTrackColor: Colors.white.withOpacity(0.5),
                               ),
                             ),

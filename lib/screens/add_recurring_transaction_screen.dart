@@ -241,7 +241,7 @@ class _AddRecurringTransactionScreenState extends State<AddRecurringTransactionS
             ),
             const SizedBox(height: 8),
             DropdownButtonFormField<RecurrenceType>(
-              value: _recurrence,
+              initialValue: _recurrence,
               decoration: const InputDecoration(
                 prefixIcon: Icon(Icons.loop),
                 border: OutlineInputBorder(),

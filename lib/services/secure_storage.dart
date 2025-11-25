@@ -42,7 +42,7 @@ class SecureStorage {
   }
 
   String _generateVerificationHash(Map<String, dynamic> data, String deviceId) {
-    final content = json.encode(data) + deviceId + 'YOUR_APP_SECRET_KEY';
+    final content = '${json.encode(data)}${deviceId}YOUR_APP_SECRET_KEY';
     return sha256.convert(utf8.encode(content)).toString();
   }
 

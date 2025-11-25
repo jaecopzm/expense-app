@@ -7,6 +7,7 @@ import '../providers/expense_provider.dart';
 import '../theme/app_theme_enhanced.dart';
 import '../widgets/enhanced_inputs.dart';
 import '../widgets/animated_widgets.dart';
+import '../utils/custom_snackbar.dart';
 
 class EnhancedEditExpenseScreen extends StatefulWidget {
   final Expense expense;
@@ -112,21 +113,10 @@ class _EnhancedEditExpenseScreenState extends State<EnhancedEditExpenseScreen>
 
       if (mounted) {
         Navigator.pop(context);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Row(
-              children: [
-                Icon(Icons.check_circle, color: Colors.white),
-                SizedBox(width: 8),
-                Text('Expense updated successfully!'),
-              ],
-            ),
-            behavior: SnackBarBehavior.floating,
-            backgroundColor: AppThemeEnhanced.success,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(AppThemeEnhanced.radiusMd),
-            ),
-          ),
+        CustomSnackbar.show(
+          context,
+          message: 'Expense updated successfully!',
+          type: SnackbarType.success,
         );
       }
     }
@@ -173,21 +163,10 @@ class _EnhancedEditExpenseScreenState extends State<EnhancedEditExpenseScreen>
       ).deleteExpense(widget.expense.id!);
       if (mounted) {
         Navigator.pop(context);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Row(
-              children: [
-                Icon(Icons.check_circle, color: Colors.white),
-                SizedBox(width: 8),
-                Text('Expense deleted successfully!'),
-              ],
-            ),
-            behavior: SnackBarBehavior.floating,
-            backgroundColor: AppThemeEnhanced.success,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(AppThemeEnhanced.radiusMd),
-            ),
-          ),
+        CustomSnackbar.show(
+          context,
+          message: 'Expense deleted successfully!',
+          type: SnackbarType.success,
         );
       }
     }
@@ -392,10 +371,12 @@ class _EnhancedEditExpenseScreenState extends State<EnhancedEditExpenseScreen>
                                   ),
                                 ],
                                 validator: (v) {
-                                  if (v?.isEmpty ?? true)
+                                  if (v?.isEmpty ?? true) {
                                     return 'Please enter an amount';
-                                  if (double.tryParse(v!) == null)
+                                  }
+                                  if (double.tryParse(v!) == null) {
                                     return 'Please enter a valid number';
+                                  }
                                   return null;
                                 },
                               ),
